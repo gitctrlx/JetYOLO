@@ -1,0 +1,3 @@
+[submodule "mmyolo"]
+	path = mmyolo
+	url = https://github.com/open-mmlab/mmyolo
