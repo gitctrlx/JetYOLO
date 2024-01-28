@@ -1,3 +1,6 @@
 [submodule "mmyolo"]
 	path = mmyolo
 	url = https://github.com/open-mmlab/mmyolo
+[submodule "xtrt"]
+	path = xtrt
+	url = https://github.com/gitctrlx/xtrt
