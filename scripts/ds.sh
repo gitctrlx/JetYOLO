@@ -1,0 +1,1 @@
+deepstream-app -c deepstream_app_config.txt

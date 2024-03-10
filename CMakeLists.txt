@@ -1,60 +1,47 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.18)
 
-set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 72 75 86)
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+project(JetYOLO)
 
-project(xtrt LANGUAGES CXX)
+# xtrt
+option(BUILD_XTRT "Build xtrt" ON)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -g -Wall -Werror -shared -fPIC")
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_BUILD_TYPE Release)
-option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+# nvdsinfer_custom_impl
+option(BUILD_NVDSINFER_CUSTOM_IMPL "Build nvdsinfer_custom_impl" ON)
 
-# CUDA
-find_package(CUDA REQUIRED)
+# tools
+option(BUILD_TOOLS_POLYGON_DRAW "Build Polygon_Draw" ON)
 
-# TensorRT
-set(TensorRT_INCLUDE_DIRS "/usr/include/aarch64-linux-gnu" CACHE STRING "TensorRT headers path")
-set(TensorRT_LIBRARIES "/usr/lib/aarch64-linux-gnu" CACHE STRING "TensorRT libs path")
-
-# GStreamer
-set(GSTREAMER_INCLUDE_DIRS "/usr/include/gstreamer-1.0" CACHE STRING "GStreamer include path")
-set(GLIB_INCLUDE_DIRS "/usr/include/glib-2.0" CACHE STRING "GLib include path")
-set(GLIBCONFIG_INCLUDE_DIRS "/usr/lib/aarch64-linux-gnu/glib-2.0/include" CACHE STRING "GLib config include path")
-
-# DeepStream
-set(DEEPSTREAM "/opt/nvidia/deepstream/deepstream" CACHE STRING "DeepStream root path")
-set(DS_LIBRARIES ${DEEPSTREAM}/lib)
-set(DS_INCLUDE_DIRS ${DEEPSTREAM}/sources/includes)
+# apps
+option(BUILD_APPS_DS_YOLO_DETECT "Build ds_yolo_detect" OFF)
+option(BUILD_APPS_DS_YOLO_FACE "Build ds_yolo_face" OFF)
+option(BUILD_APPS_DS_YOLO_POSE "Build ds_yolo_pose" OFF)
+option(BUILD_APPS_DS_YOLO_TRACKER "Build ds_yolo_tracker" OFF)
 
 
-add_executable(deepstream_face
-    deepstream_face.cpp
-    modules/interrupt.cpp
-    modules/perf.cpp
-)
-add_executable(deepstream_pose
-    deepstream_pose.cpp
-    modules/interrupt.cpp
-    modules/perf.cpp
-)
+if(BUILD_XTRT)
+    add_subdirectory(xtrt)
+endif()
 
-target_include_directories(deepstream_face PRIVATE
-    ${CUDA_INCLUDE_DIRS}
-    ${TensorRT_INCLUDE_DIRS}
-    ${DS_INCLUDE_DIRS}
-    ${GSTREAMER_INCLUDE_DIRS}
-    ${GLIB_INCLUDE_DIRS}
-    ${GLIBCONFIG_INCLUDE_DIRS}
-    modules
-)
-target_include_directories(deepstream_pose PRIVATE
-    ${CUDA_INCLUDE_DIRS}
-    ${TensorRT_INCLUDE_DIRS}
-    ${DS_INCLUDE_DIRS}
-    ${GSTREAMER_INCLUDE_DIRS}
-    ${GLIB_INCLUDE_DIRS}
-    ${GLIBCONFIG_INCLUDE_DIRS}
-    modules
-)
+if(BUILD_NVDSINFER_CUSTOM_IMPL)
+    add_subdirectory(nvdsinfer_custom_impl)
+endif()
 
+if(BUILD_TOOLS_POLYGON_DRAW)
+    add_subdirectory(tools/polygon_draw)
+endif()
+
+if(BUILD_APPS_DS_YOLO_DETECT)
+    add_subdirectory(apps/ds_yolo_detect)
+endif()
+
+if(BUILD_APPS_DS_YOLO_FACE)
+    add_subdirectory(apps/ds_yolo_face)
+endif()
+
+if(BUILD_APPS_DS_YOLO_POSE)
+    add_subdirectory(apps/ds_yolo_pose)
+endif()
+
+if(BUILD_APPS_DS_YOLO_TRACKER)
+    add_subdirectory(apps/ds_yolo_tracker)
+endif()

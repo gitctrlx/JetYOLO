@@ -26,15 +26,22 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <cassert>
+#include <iostream>
 
 #include "nvdsinfer_custom_impl.h"
-
-#include "utils.h"
 
 
 extern "C" bool NvDsInferParseYolo(
     std::vector<NvDsInferLayerInfo> const& outputLayersInfo, NvDsInferNetworkInfo const& networkInfo,
     NvDsInferParseDetectionParams const& detectionParams, std::vector<NvDsInferParseObjectInfo>& objectList);
+
+inline float
+clamp(const float val, const float minVal, const float maxVal)
+{
+  assert(minVal <= maxVal);
+  return std::min(maxVal, std::max(minVal, val));
+}
 
 static NvDsInferParseObjectInfo convertBBox(
     const float& bx1, const float& by1, const float& bx2, const float& by2, const uint& netW, const uint& netH)

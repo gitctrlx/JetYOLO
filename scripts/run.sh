@@ -1,2 +1,14 @@
-cmake -S . -B build
+export PATH=/usr/local/cuda/bin:$PATH
+cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CUDA_ARCHITECTURES=72 \
+    -DBUILD_XRT=OFF \
+    -DBUILD_NVDSINFER_CUSTOM_IMPL=OFF \
+    -DBUILD_TOOLS_POLYGON_DRAW=OFF \
+    -DBUILD_APPS_DS_YOLO_DETECT=ON \
+    -DBUILD_APPS_DS_YOLO_TRACK=ON \
+    -DBUILD_APPS_DS_YOLO_FACE=ON \
+    -DBUILD_APPS_DS_YOLO_POSE=ON \
+    -DBUILD_APPS_DS_YOLO_TRACKER=ON 
+
 cmake --build build

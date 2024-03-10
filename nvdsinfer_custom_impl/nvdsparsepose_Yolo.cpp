@@ -24,10 +24,10 @@
  */
 
 #include <algorithm>
+#include <cassert>
+#include <iostream>
 
 #include "nvdsinfer_custom_impl.h"
-
-#include "utils.h"
 
 #define NMS_THRESH 0.45;
 
@@ -38,6 +38,13 @@ NvDsInferParseYoloPose(std::vector<NvDsInferLayerInfo> const& outputLayersInfo, 
 extern "C" bool
 NvDsInferParseYoloPoseE(std::vector<NvDsInferLayerInfo> const& outputLayersInfo, NvDsInferNetworkInfo const& networkInfo,
     NvDsInferParseDetectionParams const& detectionParams, std::vector<NvDsInferInstanceMaskInfo>& objectList);
+
+inline float
+clamp(const float val, const float minVal, const float maxVal)
+{
+  assert(minVal <= maxVal);
+  return std::min(maxVal, std::max(minVal, val));
+}
 
 static std::vector<NvDsInferInstanceMaskInfo>
 nonMaximumSuppression(std::vector<NvDsInferInstanceMaskInfo> binfo)

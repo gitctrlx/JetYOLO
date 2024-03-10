@@ -1,1 +1,0 @@
-deepstream-app -c deepstream_app_config_mmyolo_trt8.txt

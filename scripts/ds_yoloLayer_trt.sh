@@ -1,1 +1,0 @@
-deepstream-app -c deepstream_app_config_yoloLayer_trt.txt
