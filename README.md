@@ -127,7 +127,7 @@ To build the `JetYOLO` components, you will first need the following software pa
 If you have completed the above environment setup, you can proceed with the following steps. Building the Basic Inference Framework：
 
 ```bash
-git clone https://github.com/gitctrlx/JetYOLO.git
+git clone --recurse-submodules https://github.com/gitctrlx/JetYOLO.git
 
 cmake -S . -B build \
     -DCMAKE_BUILD_TYPE=Release \
@@ -146,7 +146,7 @@ cmake --build build
 Configure your build with the following options to tailor the setup to your needs:
 
 - **`-DCMAKE_BUILD_TYPE=Release`**: Sets the build type to Release for optimized performance.
-- **`-DCMAKE_CUDA_ARCHITECTURES=72`**: Specify the CUDA compute capability (sm) of your host.
+- **`-DCMAKE_CUDA_ARCHITECTURES=72`**: Specify the CUDA compute capability (sm) of your host (Jetson Xavier nx:72).
 - **`-DBUILD_XRT=ON`**: Enables the build of xtrt, our lightweight, high-performance inference tool.
 - **`-DBUILD_NVDSINFER_CUSTOM_IMPL=ON`**: Determines whether to compile the DeepStream plugin for app applications.
 - **`-DBUILD_TOOLS_POLYGON_DRAW=ON`**: Controls the inclusion of the bounding box drawing tool in the `app/ds_yolo_tracker` application.

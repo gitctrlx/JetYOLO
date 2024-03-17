@@ -1,0 +1,37 @@
+# Ignore C++ build artifacts
+*.o
+*.so
+*.a
+*.lo
+*.la
+*.lai
+*.dll
+*.exe
+*.ilk
+*.pdb
+*.obj
+*.lib
+*.d
+*.exp
+
+# Ignore CUDA build artifacts
+*.ptx
+*.cubin
+*.fatbin
+
+# Ignore specific directories and files
+build/
+xtrt/engine/*.engine
+xtrt/engine/int8Cache/*.cache
+xtrt/engine/timingCache/*.cache
+xtrt/data/coco/val2017/*.jpg
+xtrt/tools/eval/log/*.log
+xtrt/tools/quant/log/*.log
+
+# Other general ignores
+*.log
+*.tmp
+*.temp
+.DS_Store
+
+

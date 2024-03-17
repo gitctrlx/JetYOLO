@@ -8,6 +8,8 @@ project(ds_tracker VERSION 0.1.0 LANGUAGES CXX CUDA)
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CXX_STANDARD 14)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 # CUDA
 find_package(CUDA REQUIRED)
 
@@ -45,10 +47,10 @@ link_directories(
     /usr/local/cuda/lib64
 )
 # add library to build task
-# add_library(task SHARED
-#     task/border_cross.cpp
-#     task/gather.cpp
-# )
+add_library(task SHARED
+    task/border_cross.cpp
+    task/gather.cpp
+)
 
 add_executable(ds_track ds_track.cpp)
 target_include_directories(ds_track PRIVATE
