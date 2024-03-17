@@ -21,10 +21,21 @@ cudadec-memtype=0
 
 [sink0]
 enable=1
-type=2
+type=4
 sync=0
 gpu-id=0
+codec=1
+bitrate=5000000
+rtsp-port=8554
+udp-port=5400
 nvbuf-memory-type=0
+
+# [sink0]
+# enable=1
+# type=2
+# sync=0
+# gpu-id=0
+# nvbuf-memory-type=0
 
 [osd]
 enable=1
