@@ -20,6 +20,7 @@
 *.fatbin
 
 # Ignore specific directories and files
+.vscode/
 build/
 xtrt/engine/*.engine
 xtrt/engine/int8Cache/*.cache

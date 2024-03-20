@@ -6,39 +6,63 @@ class Point:
 # Given three collinear points p, q, r, the function checks if 
 # point q lies on line segment 'pr' 
 def onSegment(p, q, r):
+    """
+    Determines if point q lies on the line segment formed by points p and r.
+
+    Args:
+        p (Point): The starting point of the line segment.
+        q (Point): The point to be checked.
+        r (Point): The ending point of the line segment.
+
+    Returns:
+        bool: True if point q lies on the line segment, False otherwise.
+    """
     if ( (q.x <= max(p.x, r.x)) and (q.x >= min(p.x, r.x)) and 
            (q.y <= max(p.y, r.y)) and (q.y >= min(p.y, r.y)) ):
         return True
     return False
   
 def orientation(p, q, r):
-    # to find the orientation of an ordered triplet (p,q,r)
-    # function returns the following values:
-    # 0 : Collinear points
-    # 1 : Clockwise points
-    # 2 : Counterclockwise
-      
-    # See https://www.geeksforgeeks.org/orientation-3-ordered-points/amp/ 
-    # for details of below formula. 
-      
+    """
+    Determines the orientation of an ordered triplet (p, q, r).
+
+    Parameters:
+    p (Point): The first point of the triplet.
+    q (Point): The second point of the triplet.
+    r (Point): The third point of the triplet.
+
+    Returns:
+    int: The orientation value.
+        - 0: Collinear points
+        - 1: Clockwise points
+        - 2: Counterclockwise points
+
+    Reference:
+    See https://www.geeksforgeeks.org/orientation-3-ordered-points/ for details of the formula used.
+    """
     val = (float(q.y - p.y) * (r.x - q.x)) - (float(q.x - p.x) * (r.y - q.y))
-    if (val > 0):
-          
-        # Clockwise orientation
-        return 1
-    elif (val < 0):
-          
-        # Counterclockwise orientation
-        return 2
+    if val > 0:
+        return 1  # Clockwise orientation
+    elif val < 0:
+        return 2  # Counterclockwise orientation
     else:
-          
-        # Collinear orientation
-        return 0
+        return 0  # Collinear orientation
   
 # The main function that returns true if 
 # the line segment 'p1q1' and 'p2q2' intersect.
-def doIntersect(p1,q1,p2,q2):
-      
+def doIntersect(p1, q1, p2, q2):
+    """
+    Determines if two line segments intersect.
+
+    Args:
+        p1 (tuple): The coordinates of the first endpoint of the first line segment.
+        q1 (tuple): The coordinates of the second endpoint of the first line segment.
+        p2 (tuple): The coordinates of the first endpoint of the second line segment.
+        q2 (tuple): The coordinates of the second endpoint of the second line segment.
+
+    Returns:
+        bool: True if the line segments intersect, False otherwise.
+    """
     # Find the 4 orientations required for 
     # the general and special cases
     o1 = orientation(p1, q1, p2)
@@ -78,6 +102,17 @@ def doIntersect(p1,q1,p2,q2):
 
 # check point in polygon
 def isInside(polygon, n, p):
+    """
+    Determines whether a given point `p` is inside a polygon.
+
+    Args:
+        polygon (list): List of vertices of the polygon.
+        n (int): Number of vertices in the polygon.
+        p (Point): Point to be checked.
+
+    Returns:
+        bool: True if the point is inside the polygon, False otherwise.
+    """
     # There must be at least 3 vertices in polygon[]
     if (n < 3):
         return False

@@ -18,7 +18,7 @@ maintain-aspect-ratio=1
 symmetric-padding=1
 #workspace-size=2000
 parse-bbox-instance-mask-func-name=NvDsInferParseYoloFace
-custom-lib-path=../nvdsinfer_custom_impl/build/libnvdsinfer_custom_impl_Yolo_face.so
+custom-lib-path=../build/nvdsinfer_custom_impl/libnvdsinfer_custom_impl_Yolo_face.so
 output-instance-mask=1
 
 [class-attrs-all]

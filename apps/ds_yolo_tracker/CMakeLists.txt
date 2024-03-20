@@ -52,7 +52,7 @@ add_library(task SHARED
     task/gather.cpp
 )
 
-add_executable(ds_track ds_track.cpp)
+add_executable(ds_track deepstream_track.cpp)
 target_include_directories(ds_track PRIVATE
     /usr/local/cuda/include
     ${GSTREAMER_INCLUDE_DIRS}
@@ -62,7 +62,7 @@ target_link_libraries(ds_track PRIVATE
     ${GSTREAMER_LIBRARIES} cudart nvdsgst_meta nvds_meta nvds_yml_parser task
 )
 
-add_executable(ds_app ds_app.cpp)
+add_executable(ds_app deepstream_app.cpp)
 target_include_directories(ds_app PRIVATE
     /usr/local/cuda/include
     ${GSTREAMER_INCLUDE_DIRS}
@@ -72,7 +72,7 @@ target_link_libraries(ds_app PRIVATE
     ${GSTREAMER_LIBRARIES} cudart nvdsgst_meta nvds_meta nvds_yml_parser task
 )
 
-add_executable(ds_app_multi ds_app_multi.cpp)
+add_executable(ds_app_multi deepstream_app_multi.cpp)
 target_include_directories(ds_app_multi PRIVATE
     /usr/local/cuda/include
     ${GSTREAMER_INCLUDE_DIRS}
