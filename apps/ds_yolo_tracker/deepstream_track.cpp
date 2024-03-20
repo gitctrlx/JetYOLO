@@ -1,414 +1,214 @@
-#include <gst/gst.h>
-#include <glib.h>
+#include "deepstream_track.h"
+#include "utils.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <algorithm>
-#include <cuda_runtime_api.h>
-#include "nvds_yml_parser.h"
 
-#include "gstnvdsmeta.h"
-#include "nvds_analytics_meta.h"
-#include <gst/rtsp-server/rtsp-server.h>
-#include "task/border_cross.h"
-#include "task/gather.h"
-// gie 配置文件
-#define PGIE_CONFIG_FILE "./configs/ds_yolo_tracker_config/pgie_config.txt"
-#define MAX_DISPLAY_LEN 64
-// tracking 配置文件
-#define TRACKER_CONFIG_FILE "./configs/ds_yolo_tracker_config/tracker_config.txt"
-#define MAX_TRACKING_ID_LEN 16
-
-#define PGIE_CLASS_ID_VEHICLE 2
-#define PGIE_CLASS_ID_PERSON 0
-
-/* The muxer output resolution must be set if the input streams will be of
- * different resolution. The muxer will scale all the input frames to this
- * resolution. */
-#define MUXER_OUTPUT_WIDTH 1920
-#define MUXER_OUTPUT_HEIGHT 1080
-
-/* Muxer batch formation timeout, for e.g. 40 millisec. Should ideally be set
- * based on the fastest source's framerate. */
-#define MUXER_BATCH_TIMEOUT_USEC 40000
-
-gint frame_number = 0;
-
-bool is_aarch64()
-{
-#if defined(__aarch64__)
-    return true;
-#else
-    return false;
-#endif
-}
-
-typedef struct
-{
-    guint64 n_frames;
-    guint64 last_fps_update_time;
-    gdouble fps;
-} PERF_DATA;
-
-PERF_DATA g_perf_data = {0, 0, 0.0};
-
-// 打印FPS
-gboolean perf_print_callback(gpointer user_data)
-{
-    PERF_DATA *perf_data = (PERF_DATA *)user_data;
-    guint64 current_time = g_get_monotonic_time();
-    guint64 time_elapsed = current_time - perf_data->last_fps_update_time;
-
-    if (time_elapsed > 0)
-    {
-        perf_data->fps = 1000000.0 * perf_data->n_frames / time_elapsed;
-        g_print("FPS: %0.2f\n", perf_data->fps);
-        perf_data->n_frames = 0;
-        perf_data->last_fps_update_time = current_time;
+/**
+ * @brief Sets the properties of the NvDsObjectMeta object.
+ * 
+ * This function sets the border color, background color, display text, and font size
+ * of the given NvDsObjectMeta object.
+ * 
+ * @param obj_meta The NvDsObjectMeta object to set the properties for.
+ * @param border_color An array of three floats representing the RGB values of the border color.
+ * @param bg_color An array of four floats representing the RGBA values of the background color.
+ * @param label The label of the object.
+ * @param track_id The ID of the object's track.
+ * @param confidence The confidence score of the object.
+ */
+static void set_object_meta_properties(NvDsObjectMeta *obj_meta, float border_color[3], float bg_color[4], const char* label, int track_id, float confidence) {
+    // Ensure that display_text has been allocated or has sufficient space
+    if (obj_meta->text_params.display_text == NULL) {
+        obj_meta->text_params.display_text = (char *)g_malloc0(MAX_DISPLAY_LEN);
     }
 
-    return G_SOURCE_CONTINUE;
+    // Set border and background colors
+    obj_meta->rect_params.border_color.red = border_color[0];
+    obj_meta->rect_params.border_color.green = border_color[1];
+    obj_meta->rect_params.border_color.blue = border_color[2];
+    obj_meta->rect_params.has_bg_color = 1;
+    obj_meta->rect_params.bg_color.red = bg_color[0];
+    obj_meta->rect_params.bg_color.green = bg_color[1];
+    obj_meta->rect_params.bg_color.blue = bg_color[2];
+    obj_meta->rect_params.bg_color.alpha = bg_color[3];
+
+    // Format and set the displayed text to "label: confidence, track_id"
+    snprintf(obj_meta->text_params.display_text, MAX_DISPLAY_LEN, "%s: %.2f, %d", label, confidence, track_id);
+    obj_meta->text_params.font_params.font_size = 20; 
 }
-void update_frame_counter()
-{
-    g_perf_data.n_frames++;
-}
 
-/* This is the buffer probe function that we have registered on the sink pad
- * of the OSD element. All the infer elements in the pipeline shall attach
- * their metadata to the GstBuffer, here we will iterate & process the metadata
- * forex: class ids to strings, counting of class_id objects etc.
+
+
+/**
+ * @brief Updates the display metadata with the person count and vehicle count.
  *
- * 这是我们在OSD元素的接收器上注册的缓冲区探针函数。所有管道中的推理元素都将将其元数据附加到GstBuffer上，这里我们将迭代并处理元数据
- * 例如：类ID到字符串的转换，类ID对象的计数等。
+ * This function initializes the first text_params in the display_meta and sets the display text
+ * to show the person count and vehicle count. It also sets the font parameters and background color
+ * for the text.
  *
- * */
+ * @param display_meta A pointer to the NvDsDisplayMeta structure representing the display metadata.
+ * @param person_count The number of detected persons.
+ * @param vehicle_count The number of detected vehicles.
+ */
+static void update_display_meta(NvDsDisplayMeta *display_meta, guint person_count, guint vehicle_count) {
+    // Initialize the first text_params in the display_meta
+    NvOSD_TextParams *txt_params = &display_meta->text_params[0];
+    display_meta->num_labels = 1;
 
-static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info,
-                                                   gpointer u_data)
-{
-    GstBuffer *buf = (GstBuffer *)info->data;
-    guint num_rects = 0;
-    NvDsObjectMeta *obj_meta = NULL;
-    guint vehicle_count = 0;
-    guint person_count = 0;
-    NvDsMetaList *l_frame = NULL;
-    NvDsMetaList *l_obj = NULL;
-    NvDsDisplayMeta *display_meta = NULL;
-
-    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf); // 获取批处理元数据
-    // 遍历批处理元数据，得到每一帧的元数据
-    for (l_frame = batch_meta->frame_meta_list; l_frame != NULL;
-         l_frame = l_frame->next)
-    {
-        // 获取每一帧的元数据
-        NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
-        int offset = 0;
-        // 遍历每一帧的元数据，得到每一个检测到的物体的元数据
-        for (l_obj = frame_meta->obj_meta_list; l_obj != NULL;
-             l_obj = l_obj->next)
-        {
-            // 获取每一个检测到的物体的元数据
-            obj_meta = (NvDsObjectMeta *)(l_obj->data);
-            // 如果是车辆
-            if (obj_meta->class_id == PGIE_CLASS_ID_VEHICLE)
-            {
-                // 修改颜色为blue，0.2为透明度
-                obj_meta->rect_params.border_color.red = 0.0;
-                obj_meta->rect_params.border_color.green = 0.0;
-                obj_meta->rect_params.border_color.blue = 1.0;
-
-                obj_meta->rect_params.has_bg_color = 1;
-                obj_meta->rect_params.bg_color.red = 0.0;
-                obj_meta->rect_params.bg_color.green = 0.0;
-                obj_meta->rect_params.bg_color.blue = 1.0;
-                obj_meta->rect_params.bg_color.alpha = 0.2;
-
-                vehicle_count++;
-                num_rects++;
-            }
-            // 如果是人
-            if (obj_meta->class_id == PGIE_CLASS_ID_PERSON)
-            {
-                // 修改颜色为粉色，0.2为透明度
-                obj_meta->rect_params.border_color.red = 1.0;
-                obj_meta->rect_params.border_color.green = 0.0;
-                obj_meta->rect_params.border_color.blue = 1.0;
-
-                obj_meta->rect_params.has_bg_color = 1;
-                obj_meta->rect_params.bg_color.red = 1.0;
-                obj_meta->rect_params.bg_color.green = 0.0;
-                obj_meta->rect_params.bg_color.blue = 1.0;
-                obj_meta->rect_params.bg_color.alpha = 0.2;
-
-                person_count++;
-                num_rects++;
-            }
-            // 拼接文字内容为：label + track_id
-
-            // 设置文字内容
-            obj_meta->text_params.display_text = (char *)g_malloc0(MAX_DISPLAY_LEN);
-            // 拼接文字内容为：label + track_id
-            // snprintf: 格式化字符串，参数：目标字符串，最大长度，格式，参数
-            offset = snprintf(obj_meta->text_params.display_text, MAX_DISPLAY_LEN, "%s", obj_meta->obj_label);
-            offset = snprintf(obj_meta->text_params.display_text + offset, MAX_DISPLAY_LEN, " %d", int(obj_meta->object_id));
-            // 改变字体大小
-            obj_meta->text_params.font_params.font_size = 20;
-        }
-        // 获取显示元数据，用于在屏幕上绘制多边形
-        display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
-
-        // 添加文字
-        NvOSD_TextParams *txt_params = &display_meta->text_params[0];
-        display_meta->num_labels = 1;
+    // Allocate or ensure memory for display_text
+    if (txt_params->display_text == NULL) {
         txt_params->display_text = (char *)g_malloc0(MAX_DISPLAY_LEN);
-        offset = snprintf(txt_params->display_text, MAX_DISPLAY_LEN, "Person Count = %d ", person_count);
-        offset = snprintf(txt_params->display_text + offset, MAX_DISPLAY_LEN, "Vehicle Count = %d ", vehicle_count);
+    }
 
-        // 设置文字的位置
-        txt_params->x_offset = 10;
-        txt_params->y_offset = 12;
+    // Set the display text
+    snprintf(txt_params->display_text, MAX_DISPLAY_LEN, "Person Count = %d Vehicle Count = %d", person_count, vehicle_count);
+    txt_params->x_offset = 10;
+    txt_params->y_offset = 12;
+    txt_params->font_params.font_name = "Serif";
+    txt_params->font_params.font_size = 20;
+    txt_params->font_params.font_color.red = 1.0;
+    txt_params->font_params.font_color.green = 1.0;
+    txt_params->font_params.font_color.blue = 1.0;
+    txt_params->font_params.font_color.alpha = 1.0;
+    txt_params->set_bg_clr = 1;
+    txt_params->text_bg_clr.red = 0.0;
+    txt_params->text_bg_clr.green = 0.0;
+    txt_params->text_bg_clr.blue = 0.0;
+    txt_params->text_bg_clr.alpha = 1.0;
+}
 
-        // 字体
-        txt_params->font_params.font_name = "Serif";
-        txt_params->font_params.font_size = 20;
-        txt_params->font_params.font_color.red = 1.0;
-        txt_params->font_params.font_color.green = 1.0;
-        txt_params->font_params.font_color.blue = 1.0;
-        txt_params->font_params.font_color.alpha = 1.0;
+/**
+ * @brief The callback function for the pad probe on the sink pad of the OSD element.
+ *
+ * This function is called when a buffer is received on the sink pad of the OSD element.
+ * It processes the buffer and updates the object metadata properties and display metadata.
+ *
+ * @param pad The sink pad on which the probe is installed.
+ * @param info The probe information containing the buffer data.
+ * @param u_data The user data passed to the probe function.
+ * @return The return value indicating the status of the probe function.
+ */
+static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info,
+                                                   gpointer u_data) {
+    GstBuffer *buf = GST_BUFFER(info->data);
+    guint vehicle_count = 0, person_count = 0;
+    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
 
-        // 背景颜色
-        txt_params->set_bg_clr = 1;
-        txt_params->text_bg_clr.red = 0.0;
-        txt_params->text_bg_clr.green = 0.0;
-        txt_params->text_bg_clr.blue = 0.0;
-        txt_params->text_bg_clr.alpha = 1.0;
+    for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next) {
+        NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
 
-        // 添加显示
+        for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next) {
+            NvDsObjectMeta *obj_meta = (NvDsObjectMeta *)(l_obj->data);
+
+            if (obj_meta->class_id == PGIE_CLASS_ID_VEHICLE) {
+                float border_color[] = {0.0, 0.0, 1.0};
+                float bg_color[] = {0.0, 0.0, 1.0, 0.2};
+                // Call function, pass category, confidence, and tracking ID
+                set_object_meta_properties(obj_meta, border_color, bg_color, obj_meta->obj_label, obj_meta->object_id, obj_meta->confidence);
+                vehicle_count++;
+            } else if (obj_meta->class_id == PGIE_CLASS_ID_PERSON) {
+                float border_color[] = {1.0, 0.0, 1.0};
+                float bg_color[] = {1.0, 0.0, 1.0, 0.2};
+                // ditto
+                set_object_meta_properties(obj_meta, border_color, bg_color, obj_meta->obj_label, obj_meta->object_id, obj_meta->confidence);
+                person_count++;
+            }
+        }
+
+        NvDsDisplayMeta *display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
+        update_display_meta(display_meta, person_count, vehicle_count);
         nvds_add_display_meta_to_frame(frame_meta, display_meta);
     }
 
-#if 0
-    g_print ("Frame Number = %d Number of objects = %d "
-            "Vehicle Count = %d Person Count = %d\n",
-            frame_number, num_rects, vehicle_count, person_count);
-#endif
+    // Example logging, consider adjusting based on actual needs
+    // g_print("Frame Processed: Person Count = %d, Vehicle Count = %d\n", person_count, vehicle_count);
     frame_number++;
     update_frame_counter();
     return GST_PAD_PROBE_OK;
 }
 
-static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
-{
-    GMainLoop *loop = (GMainLoop *)data;
-    switch (GST_MESSAGE_TYPE(msg))
-    {
-    case GST_MESSAGE_EOS:
-        g_print("End of stream\n");
-        g_main_loop_quit(loop);
-        break;
-    case GST_MESSAGE_ERROR:
-    {
-        gchar *debug;
-        GError *error;
-        gst_message_parse_error(msg, &error, &debug);
-        g_printerr("ERROR from element %s: %s\n",
-                   GST_OBJECT_NAME(msg->src), error->message);
-        if (debug)
-            g_printerr("Error details: %s\n", debug);
-        g_free(debug);
-        g_error_free(error);
-        g_main_loop_quit(loop);
-        break;
-    }
-    default:
-        break;
-    }
-    return TRUE;
-}
 
-/* Tracker config parsing */
-
-#define CHECK_ERROR(error)                                                   \
-    if (error)                                                               \
-    {                                                                        \
-        g_printerr("Error while parsing config file: %s\n", error->message); \
-        goto done;                                                           \
-    }
-
-#define CONFIG_GROUP_TRACKER "tracker"
-#define CONFIG_GROUP_TRACKER_WIDTH "tracker-width"
-#define CONFIG_GROUP_TRACKER_HEIGHT "tracker-height"
-#define CONFIG_GROUP_TRACKER_LL_CONFIG_FILE "ll-config-file"
-#define CONFIG_GROUP_TRACKER_LL_LIB_FILE "ll-lib-file"
-#define CONFIG_GROUP_TRACKER_ENABLE_BATCH_PROCESS "enable-batch-process"
-#define CONFIG_GPU_ID "gpu-id"
-
-static gchar *
-get_absolute_file_path(gchar *cfg_file_path, gchar *file_path)
-{
-    gchar abs_cfg_path[PATH_MAX + 1];
-    gchar *abs_file_path;
-    gchar *delim;
-
-    if (file_path && file_path[0] == '/')
-    {
-        return file_path;
-    }
-
-    if (!realpath(cfg_file_path, abs_cfg_path))
-    {
-        g_free(file_path);
-        return NULL;
-    }
-
-    // Return absolute path of config file if file_path is NULL.
-    if (!file_path)
-    {
-        abs_file_path = g_strdup(abs_cfg_path);
-        return abs_file_path;
-    }
-
-    delim = g_strrstr(abs_cfg_path, "/");
-    *(delim + 1) = '\0';
-
-    abs_file_path = g_strconcat(abs_cfg_path, file_path, NULL);
-    g_free(file_path);
-
-    return abs_file_path;
-}
-// 从配置文件中读取配置信息， 设置tracker的属性
+/**
+ * @brief A boolean data type in GLib, representing true or false.
+ *
+ * @return TRUE if the operation is successful, FALSE otherwise.
+ */
 static gboolean set_tracker_properties(GstElement *nvtracker)
 {
-    gboolean ret = FALSE;
     GError *error = NULL;
-    gchar **keys = NULL;
-    gchar **key = NULL;
-    GKeyFile *key_file = g_key_file_new();
-
-    if (!g_key_file_load_from_file(key_file, TRACKER_CONFIG_FILE, G_KEY_FILE_NONE,
-                                   &error))
-    {
+    g_autoptr(GKeyFile) key_file = g_key_file_new();
+    if (!g_key_file_load_from_file(key_file, TRACKER_CONFIG_FILE, G_KEY_FILE_NONE, &error)) {
         g_printerr("Failed to load config file: %s\n", error->message);
         return FALSE;
     }
 
-    keys = g_key_file_get_keys(key_file, CONFIG_GROUP_TRACKER, NULL, &error);
-    CHECK_ERROR(error);
+    g_auto(GStrv) keys = g_key_file_get_keys(key_file, CONFIG_GROUP_TRACKER, NULL, &error);
+    if (error != NULL) {
+        g_printerr("Failed to get keys: %s\n", error->message);
+        return FALSE;
+    }
 
-    for (key = keys; *key; key++)
-    {
-        if (!g_strcmp0(*key, CONFIG_GROUP_TRACKER_WIDTH))
-        {
-            gint width =
-                g_key_file_get_integer(key_file, CONFIG_GROUP_TRACKER,
-                                       CONFIG_GROUP_TRACKER_WIDTH, &error);
-            CHECK_ERROR(error);
-            g_object_set(G_OBJECT(nvtracker), "tracker-width", width, NULL);
+    for (gchar **key = keys; *key; ++key) {
+        if (!g_strcmp0(*key, CONFIG_GROUP_TRACKER_WIDTH) || !g_strcmp0(*key, CONFIG_GROUP_TRACKER_HEIGHT) ||
+            !g_strcmp0(*key, CONFIG_GPU_ID) || !g_strcmp0(*key, CONFIG_GROUP_TRACKER_ENABLE_BATCH_PROCESS)) {
+            gint value = g_key_file_get_integer(key_file, CONFIG_GROUP_TRACKER, *key, &error);
+            if (error != NULL) {
+                g_printerr("Failed to get integer for key '%s': %s\n", *key, error->message);
+                return FALSE;
+            }
+            g_object_set(G_OBJECT(nvtracker), *key, value, NULL);
+        } else if (!g_strcmp0(*key, CONFIG_GROUP_TRACKER_LL_CONFIG_FILE) || !g_strcmp0(*key, CONFIG_GROUP_TRACKER_LL_LIB_FILE)) {
+            g_autofree gchar *file_path = get_absolute_file_path(TRACKER_CONFIG_FILE, g_key_file_get_string(key_file, CONFIG_GROUP_TRACKER, *key, &error));
+            if (error != NULL) {
+                g_printerr("Failed to get file path for key '%s': %s\n", *key, error->message);
+                return FALSE;
+            }
+            g_object_set(G_OBJECT(nvtracker), *key, file_path, NULL);
         }
-        else if (!g_strcmp0(*key, CONFIG_GROUP_TRACKER_HEIGHT))
-        {
-            gint height =
-                g_key_file_get_integer(key_file, CONFIG_GROUP_TRACKER,
-                                       CONFIG_GROUP_TRACKER_HEIGHT, &error);
-            CHECK_ERROR(error);
-            g_object_set(G_OBJECT(nvtracker), "tracker-height", height, NULL);
-        }
-        else if (!g_strcmp0(*key, CONFIG_GPU_ID))
-        {
-            guint gpu_id =
-                g_key_file_get_integer(key_file, CONFIG_GROUP_TRACKER,
-                                       CONFIG_GPU_ID, &error);
-            CHECK_ERROR(error);
-            g_object_set(G_OBJECT(nvtracker), "gpu_id", gpu_id, NULL);
-        }
-        else if (!g_strcmp0(*key, CONFIG_GROUP_TRACKER_LL_CONFIG_FILE))
-        {
-            char *ll_config_file = get_absolute_file_path(TRACKER_CONFIG_FILE,
-                                                          g_key_file_get_string(key_file,
-                                                                                CONFIG_GROUP_TRACKER,
-                                                                                CONFIG_GROUP_TRACKER_LL_CONFIG_FILE, &error));
-            CHECK_ERROR(error);
-            g_object_set(G_OBJECT(nvtracker), "ll-config-file", ll_config_file, NULL);
-        }
-        else if (!g_strcmp0(*key, CONFIG_GROUP_TRACKER_LL_LIB_FILE))
-        {
-            char *ll_lib_file = get_absolute_file_path(TRACKER_CONFIG_FILE,
-                                                       g_key_file_get_string(key_file,
-                                                                             CONFIG_GROUP_TRACKER,
-                                                                             CONFIG_GROUP_TRACKER_LL_LIB_FILE, &error));
-            CHECK_ERROR(error);
-            g_object_set(G_OBJECT(nvtracker), "ll-lib-file", ll_lib_file, NULL);
-        }
-        else if (!g_strcmp0(*key, CONFIG_GROUP_TRACKER_ENABLE_BATCH_PROCESS))
-        {
-            gboolean enable_batch_process =
-                g_key_file_get_integer(key_file, CONFIG_GROUP_TRACKER,
-                                       CONFIG_GROUP_TRACKER_ENABLE_BATCH_PROCESS, &error);
-            CHECK_ERROR(error);
-            g_object_set(G_OBJECT(nvtracker), "enable_batch_process",
-                         enable_batch_process, NULL);
-        }
-        else
-        {
-            g_printerr("Unknown key '%s' for group [%s]", *key,
-                       CONFIG_GROUP_TRACKER);
+        else {
+            g_printerr("Unknown key '%s' for group [%s]", *key, CONFIG_GROUP_TRACKER);
         }
     }
 
-    ret = TRUE;
-done:
-    if (error)
-    {
-        g_error_free(error);
-    }
-    if (keys)
-    {
-        g_strfreev(keys);
-    }
-    if (!ret)
-    {
-        g_printerr("%s failed", __func__);
-    }
-    return ret;
+    return TRUE;
 }
 
-// This function will be called when there is a new pad to be connected
-static void cb_newpad(GstElement *decodebin, GstPad *decoder_src_pad, gpointer data)
-{
-    g_print("In cb_newpad\n");
-
-    GstCaps *caps = gst_pad_get_current_caps(decoder_src_pad);
-    GstStructure *gststruct = gst_caps_get_structure(caps, 0);
-    const gchar *gstname = gst_structure_get_name(gststruct);
+/**
+ * @brief Callback function for handling new pads in the decodebin element.
+ *
+ * This function is called when a new pad is added to the decodebin element. It checks the media type of the pad and proceeds only if it is for video. If the media type indicates an NVIDIA decoder plugin, it links the decoder src pad to the source bin ghost pad. Otherwise, it prints an error message.
+ *
+ * @param decodebin The decodebin element.
+ * @param decoder_src_pad The decoder src pad.
+ * @param data The user data (source bin element).
+ */
+static void cb_newpad(GstElement *decodebin, GstPad *decoder_src_pad, gpointer data) {
     GstElement *source_bin = (GstElement *)data;
-    GstCapsFeatures *features = gst_caps_get_features(caps, 0);
+    GstCaps *caps = gst_pad_get_current_caps(decoder_src_pad);
 
-    g_print("gstname=%s\n", gstname);
+    if (!caps) {
+        g_printerr("Failed to get caps\n");
+        return;
+    }
 
-    // Need to check if the pad created by the decodebin is for video and not audio.
-    if (strstr(gstname, "video") != NULL)
-    {
-        // Link the decodebin pad only if decodebin has picked the NVIDIA
-        // decoder plugin nvdec_*. We do this by checking if the pad caps contain
-        // NVMM memory features.
-        g_print("features=%s\n", gst_caps_features_to_string(features));
+    const gchar *media_type = gst_structure_get_name(gst_caps_get_structure(caps, 0));
+    g_print("Media type: %s\n", media_type);
 
-        if (gst_caps_features_contains(features, "memory:NVMM"))
-        {
-            // Get the source bin ghost pad
+    // Proceed only if the pad is for video
+    if (g_str_has_prefix(media_type, "video/")) {
+        GstCapsFeatures *features = gst_caps_get_features(caps, 0);
+
+        // Check for NVMM memory features indicating an NVIDIA decoder plugin
+        if (gst_caps_features_contains(features, "memory:NVMM")) {
             GstPad *bin_ghost_pad = gst_element_get_static_pad(source_bin, "src");
 
-            if (!gst_ghost_pad_set_target(GST_GHOST_PAD(bin_ghost_pad), decoder_src_pad))
-            {
+            if (!gst_ghost_pad_set_target(GST_GHOST_PAD(bin_ghost_pad), decoder_src_pad)) {
                 g_printerr("Failed to link decoder src pad to source bin ghost pad\n");
+            } else {
+                g_print("Successfully linked the decoder src pad to source bin ghost pad\n");
             }
 
             gst_object_unref(bin_ghost_pad);
-        }
-        else
-        {
+        } else {
             g_printerr("Error: Decodebin did not pick NVIDIA decoder plugin.\n");
         }
     }
@@ -416,17 +216,41 @@ static void cb_newpad(GstElement *decodebin, GstPad *decoder_src_pad, gpointer d
     gst_caps_unref(caps);
 }
 
-static void decodebin_child_added(GstChildProxy *child_proxy, GObject *object, gchar *name, gpointer user_data)
-{
+/**
+ * @brief Callback function for the "child-added" signal of a GstChildProxy.
+ *        This function is called when a child element is added to the GstChildProxy.
+ *        It checks if the added element is a decodebin and connects the "child-added"
+ *        signal of the decodebin to itself recursively.
+ *
+ * @param child_proxy The GstChildProxy object that emitted the signal.
+ * @param object The GObject representing the added child element.
+ * @param name The name of the added child element.
+ * @param user_data User data passed to the signal handler.
+ */
+static void decodebin_child_added(GstChildProxy *child_proxy, GObject *object, gchar *name, gpointer user_data) {
     g_print("Decodebin child added: %s\n", name);
 
-    if (strstr(name, "decodebin") != NULL)
-    {
+    // Directly check if the element is a decodebin instead of using strstr.
+    // This is more straightforward and avoids unnecessary string scanning
+    // since we are looking for a match at the start of the string.
+    if (g_str_has_prefix(name, "decodebin")) {
         g_signal_connect(object, "child-added", G_CALLBACK(decodebin_child_added), user_data);
+        g_print("Connected to 'child-added' signal for %s\n", name);
     }
 }
 
-// 读取视频文件
+/**
+ * @brief Creates a source bin with a GstElement for reading from a URI.
+ * 
+ * This function creates a source GstBin to abstract the content of the bin from the rest of the pipeline.
+ * It creates a GstElement of type "uridecodebin" to read from the specified URI.
+ * The function also connects to the "pad-added" signal of the decodebin and adds the URI decode bin to the source bin.
+ * Finally, it creates a ghost pad for the source bin and returns the source bin.
+ * 
+ * @param index The index of the source bin.
+ * @param uri The URI to read from.
+ * @return A GstElement representing the source bin, or NULL if the ghost pad creation fails.
+ */
 GstElement *create_source_bin(guint index, const gchar *uri)
 {
     g_print("Creating source bin\n");
@@ -462,26 +286,36 @@ GstElement *create_source_bin(guint index, const gchar *uri)
     return nbin;
 }
 
+
 // main函数
 int main(int argc, char *argv[])
 {
-    GMainLoop *loop = NULL;
-    // 创建各种元素
-    GstElement *pipeline = NULL, *source = NULL, *streammux = NULL, *pgie = NULL, *nvtracker = NULL, *nvvidconv = NULL,
-               *nvosd = NULL, *nvvidconv_postosd = NULL, *caps = NULL, *encoder = NULL, *rtppay = NULL, *sink = NULL;
-    g_print("With tracker\n");
-    GstBus *bus = NULL;
-    guint bus_watch_id = 0;
-    GstPad *osd_sink_pad = NULL;
-    GstCaps *caps_filter = NULL;
+    GMainLoop   *loop              = NULL;
+    GstElement  *pipeline          = NULL, 
+                *source            = NULL, 
+                *streammux         = NULL, 
+                *pgie              = NULL,
+                *nvtracker         = NULL, 
+                *nvvidconv         = NULL,
+                *nvosd             = NULL, 
+                *nvvidconv_postosd = NULL, 
+                *caps              = NULL, 
+                *encoder           = NULL, 
+                *rtppay            = NULL, 
+                *sink              = NULL;
 
-    guint bitrate = 5000000;       // 比特率
-    gchar *codec = "H264";         // 设置编码格式
-    guint updsink_port_num = 5400; // 设置端口号
-    guint rtsp_port_num = 8554;    // 设置RTSP端口号
-    gchar *rtsp_path = "/ds-test"; // 设置RTSP路径
+    GstBus      *bus               = NULL;
+    guint        bus_watch_id      = 0;
+    GstPad      *osd_sink_pad      = NULL;
+    GstCaps     *caps_filter       = NULL;
 
-    int current_device = -1;
+    guint        bitrate           = 5000000;      // 比特率
+    gchar       *codec             = "H264";       // 设置编码格式
+    guint        updsink_port_num  = 5400;         // 设置端口号
+    guint        rtsp_port_num     = 8554;         // 设置RTSP端口号
+    gchar       *rtsp_path         = "/ds-test";   // 设置RTSP路径
+
+    int current_device             = -1;
     cudaGetDevice(&current_device);
     struct cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, current_device);
@@ -494,111 +328,149 @@ int main(int argc, char *argv[])
     }
 
     /* Standard GStreamer initialization */
-    // 初始化GStreamer
     gst_init(&argc, &argv);
     loop = g_main_loop_new(NULL, FALSE);
 
-    // ==================== 创建元素 ====================
+    
+     /**
+   * @brief Initializes the GStreamer elements required for the pipeline.
+   *
+   * This code block is responsible for creating the various GStreamer elements that make up
+   * the streaming pipeline. Each element has a specific role in the processing and handling
+   * of video streams, from input to output.
+   */
+    pipeline          = gst_pipeline_new("ds-tracker-pipeline");                           // 创建管道
+    source            = create_source_bin(0, argv[1]);                                     // 创建source_bin元素， 用于从文件中读取视频流
+    streammux         = gst_element_factory_make("nvstreammux", "stream-muxer");           // 创建流复用器， 用于将多个流合并为一个流 ， 以及将多帧画面打包batch
+    pgie              = gst_element_factory_make("nvinfer", "primary-nvinference-engine"); // 创建PGIE元素， 用于执行推理
+    nvtracker         = gst_element_factory_make("nvtracker", "tracker");                  // 创建tracker元素， 用于跟踪识别到的物体
+    nvvidconv         = gst_element_factory_make("nvvideoconvert", "nvvideo-converter");   // 创建nvvidconv元素， 用于将NV12转换为RGBA
+    nvosd             = gst_element_factory_make("nvdsosd", "nv-onscreendisplay");         // 创建nvosd元素， 用于在转换后的RGBA缓冲区上绘制
+    nvvidconv_postosd = gst_element_factory_make("nvvideoconvert", "convertor_postosd");   // 创建nvvidconv_postosd元素， 用于将NV12转换为RGBA
+    caps              = gst_element_factory_make("capsfilter", "filter");                  // 创建caps元素， 用于设置视频格式
 
-    pipeline = gst_pipeline_new("ds-tracker-pipeline"); // 创建管道
-
-    source = create_source_bin(0, argv[1]);                                              // 创建source_bin元素， 用于从文件中读取视频流
-    streammux = gst_element_factory_make("nvstreammux", "stream-muxer");                 // 创建流复用器， 用于将多个流合并为一个流 ， 以及将多帧画面打包batch
-    pgie = gst_element_factory_make("nvinfer", "primary-nvinference-engine");            // 创建PGIE元素， 用于执行推理
-    nvtracker = gst_element_factory_make("nvtracker", "tracker");                        // 创建tracker元素， 用于跟踪识别到的物体
-    nvvidconv = gst_element_factory_make("nvvideoconvert", "nvvideo-converter");         // 创建nvvidconv元素， 用于将NV12转换为RGBA
-    nvosd = gst_element_factory_make("nvdsosd", "nv-onscreendisplay");                   // 创建nvosd元素， 用于在转换后的RGBA缓冲区上绘制
-    nvvidconv_postosd = gst_element_factory_make("nvvideoconvert", "convertor_postosd"); // 创建nvvidconv_postosd元素， 用于将NV12转换为RGBA
-    caps = gst_element_factory_make("capsfilter", "filter");                             // 创建caps元素， 用于设置视频格式
-
-    // 创建编码器
-    if (g_strcmp0(codec, "H264") == 0)
-    {
-        // 创建H264编码器
-        encoder = gst_element_factory_make("nvv4l2h264enc", "encoder");
-        printf("Creating H264 Encoder\n");
+    // Determine the correct encoder and RTP payload packer based on the specified codec.
+    const gchar *encoder_element, *rtppay_element;
+    if (g_strcmp0(codec, "H264") == 0) {
+        encoder_element = "nvv4l2h264enc";
+        rtppay_element  = "rtph264pay";
+        printf("Creating H264 Encoder and rtppay\n");
+    } else if (g_strcmp0(codec, "H265") == 0) {
+        encoder_element = "nvv4l2h265enc";
+        rtppay_element  = "rtph265pay";
+        printf("Creating H265 Encoder and rtppay\n");
+    } else {
+        g_printerr("Unsupported codec: %s. Exiting.\n", codec);
+        return -1; 
     }
-    else if (g_strcmp0(codec, "H265") == 0)
-    {
-        // 创建H265编码器
-        encoder = gst_element_factory_make("nvv4l2h265enc", "encoder");
-        printf("Creating H265 Encoder\n");
-    }
 
-    //  创建rtppay元素， 用于将编码后的数据打包为RTP包
-    if (g_strcmp0(codec, "H264") == 0)
-    {
-        rtppay = gst_element_factory_make("rtph264pay", "rtppay");
-        printf("Creating H264 rtppay\n");
-    }
-    else if (g_strcmp0(codec, "H265") == 0)
-    {
-        rtppay = gst_element_factory_make("rtph265pay", "rtppay");
-        printf("Creating H265 rtppay\n");
-    }
-    // 创建udpsink元素， 用于将RTP包发送到网络
-    sink = gst_element_factory_make("udpsink", "udpsink");
+    // Create the encoder, RTP payload packer, and UDP sink based on the selected codec.
+    encoder = gst_element_factory_make(encoder_element, "encoder");
+    rtppay  = gst_element_factory_make(rtppay_element, "rtppay");
+    sink    = gst_element_factory_make("udpsink", "udpsink");
 
+    // Verify that all elements were created successfully.
     if (!source || !pgie || !nvtracker || !nvvidconv || !nvosd || !nvvidconv_postosd ||
-        !caps || !encoder || !rtppay || !sink)
-    {
+        !caps || !encoder || !rtppay || !sink) {
         g_printerr("One element could not be created. Exiting.\n");
         return -1;
     }
 
-    // ==================== 设置元素参数 ====================
+    /**
+     * @brief Configures parameters for various elements in the GStreamer pipeline.
+     *
+     * This section sets up essential properties for the elements within the pipeline to ensure
+     * correct operation and optimization of the video processing and streaming workflow.
+     */
 
-    // 1.设置streammux元素的参数
+    // 1. Configure the stream multiplexer (streammux) settings
+    // Sets the batch size, resolution (width and height), and timeout for batched push operations.
+    // These settings are crucial for handling stream inputs, especially when dealing with multiple streams or high-resolution video.
     g_object_set(G_OBJECT(streammux), "batch-size", 1, NULL);
-    g_object_set(G_OBJECT(streammux), "width", MUXER_OUTPUT_WIDTH, "height",
-                 MUXER_OUTPUT_HEIGHT,
-                 "batched-push-timeout", MUXER_BATCH_TIMEOUT_USEC, NULL);
+    g_object_set(G_OBJECT(streammux), "width", MUXER_OUTPUT_WIDTH, "height", MUXER_OUTPUT_HEIGHT, "batched-push-timeout", MUXER_BATCH_TIMEOUT_USEC, NULL);
 
-    // 2.设置PGIE元素的参数
+    // 2. Configure the Primary GIE (pgie) settings
+    // Specifies the configuration file for the GIE, which contains model and inference settings.
     g_object_set(G_OBJECT(pgie), "config-file-path", PGIE_CONFIG_FILE, NULL);
 
-    // 3.设置tracker元素的参数
+    // 3. (Commented out) Set tracker element parameters
+    // The tracker's properties, if utilized, would be set here to track objects across frames.
     set_tracker_properties(nvtracker);
 
-    // 4.设置caps元素的视频格式
+    // 4. Define the video format for the caps filter
+    // The caps (capabilities) filter specifies the expected video format, essential for ensuring compatibility between pipeline elements.
     caps_filter = gst_caps_from_string("video/x-raw(memory:NVMM), format=I420");
     g_object_set(G_OBJECT(caps), "caps", caps_filter, NULL);
-    // 释放caps_filter
-    gst_caps_unref(caps_filter);
+    gst_caps_unref(caps_filter); // Release the caps filter reference after setting
 
-    // 5.设置编码器的比特率
+    // 5. Set encoder bitrate and presets
+    // Adjusts the video encoder's bitrate for output video quality and compression.
+    // Preset levels are adjusted for performance, with specific settings for AArch64 architecture to optimize for hardware.
     g_object_set(G_OBJECT(encoder), "bitrate", bitrate, NULL);
-    // 设置编码器的preset-level
-    if (is_aarch64())
-    {
+    if (is_aarch64()) {
         g_object_set(G_OBJECT(encoder), "preset-level", 1, NULL);
         g_object_set(G_OBJECT(encoder), "insert-sps-pps", 1, NULL);
     }
 
-    // 6.设置udpsink元素的参数
+    // 6. Configure the UDP sink (udpsink) parameters
+    // Sets network parameters for the udpsink, including multicast address, port, and synchronization settings.
+    // These are critical for ensuring the video stream is correctly sent over the network.
     g_object_set(G_OBJECT(sink), "host", "224.224.255.255", NULL);
     g_object_set(G_OBJECT(sink), "port", updsink_port_num, NULL);
     g_object_set(G_OBJECT(sink), "async", FALSE, NULL);
     g_object_set(G_OBJECT(sink), "sync", 1, NULL);
 
-    // 添加消息处理器
+    // Add a message handler to the pipeline's bus
+    // This allows for handling GStreamer messages, which can include errors, state changes, or custom application messages.
     bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
     bus_watch_id = gst_bus_add_watch(bus, bus_call, loop);
-    gst_object_unref(bus);
+    gst_object_unref(bus); // Release the bus reference after adding the watch
 
-    // ==================== 将元素添加到管道中 ====================
+    /**
+     * @brief Adds a series of elements to the GStreamer pipeline.
+     *
+     * This function call adds multiple GStreamer elements to a previously created pipeline container (`pipeline`). 
+     * The elements added are:
+     * - `source`: The source element, responsible for providing the initial video stream.
+     * - `streammux`: Stream multiplexer, capable of combining multiple streams or managing single streams.
+     * - `pgie`: Primary GIE (GstInference Engine), used for running inference (e.g., object detection) on the video stream.
+     * - `nvvidconv`: Video converter, typically used for converting video formats (e.g., from NV12 to RGBA).
+     * - `nvosd`: On-Screen Display, for rendering overlays such as bounding boxes or text over the video.
+     * - `nvvidconv_postosd`: Another video converter, used post-OSD for possibly another format conversion before encoding.
+     * - `caps`: Caps filter, defining the capabilities (media type, format) of the connection between elements.
+     * - `encoder`: Video encoder, compresses the video stream into a codec format (e.g., H264, H265).
+     * - `rtppay`: RTP payload packer, packages the encoded video for streaming over network protocols.
+     * - `sink`: The sink element, which outputs the video stream, typically to a network or file.
+     *
+     * All these elements are necessary for a complete video processing and streaming pipeline, from source to sink. 
+     * The `NULL` terminator is required to signal the end of the arguments list to `gst_bin_add_many`.
+     */
     gst_bin_add_many(GST_BIN(pipeline),
                      source, streammux, pgie, nvtracker,
                      nvvidconv, nvosd, nvvidconv_postosd, caps, encoder, rtppay, sink, NULL);
 
-    // ==================== 将source_bin 添加到streammux元素的sink pad ====================
+    /**
+     * @brief Links the source element to the stream multiplexer's sink pad.
+     *
+     * This segment obtains a "sink" pad from the stream multiplexer (`streammux`) and a "src" pad from
+     * the source element (`source`), and attempts to link them. This connection is essential for directing
+     * the video stream from the source into the stream multiplexer, where it can be combined with other
+     * streams or processed as a single stream. The pad names "sink_0" and "src" are used to identify the
+     * specific pads for linking.
+     * 
+     * If the linking fails, an error message is printed, and the function returns early, indicating an
+     * inability to correctly set up the streaming pipeline. This failure typically suggests a
+     * compatibility issue between the source and multiplexer formats or configurations.
+     * 
+     * After the linking attempt, the reference counts for the obtained pads are decremented using
+     * `gst_object_unref`, ensuring proper memory management by allowing GStreamer to free the pad
+     * resources when they are no longer needed.
+     */
     GstPad *sinkpad, *srcpad;
     gchar pad_name_sink[16] = "sink_0";
     gchar pad_name_src[16] = "src";
 
-    // 获取streammux元素的sink pad
     sinkpad = gst_element_get_request_pad(streammux, pad_name_sink);
-    // 获取source_bin元素的src pad
     srcpad = gst_element_get_static_pad(source, pad_name_src);
 
     if (gst_pad_link(srcpad, sinkpad) != GST_PAD_LINK_OK)
@@ -606,31 +478,78 @@ int main(int argc, char *argv[])
         g_printerr("Failed to link decoder to stream muxer. Exiting.\n");
         return -1;
     }
-    // 释放sinkpad和srcpad
     gst_object_unref(sinkpad);
     gst_object_unref(srcpad);
 
-    //  ==================== 将元素链接起来 ====================
+    /**
+     * @brief Links the GStreamer elements into a pipeline and sets up monitoring.
+     *
+     * This code segment is crucial for constructing the streaming pipeline by sequentially linking
+     * multiple GStreamer elements. The `gst_element_link_many` function attempts to link the elements
+     * starting from the stream multiplexer (`streammux`) to the UDP sink (`sink`) in the order they
+     * appear. This establishes the flow of data from the video source through various processing stages,
+     * including inference (`pgie`), video conversion (`nvvidconv`, `nvvidconv_postosd`), on-screen display
+     * (`nvosd`), encoding (`encoder`), RTP payload packaging (`rtppay`), and finally network transmission
+     * (`sink`). If any element fails to link, an error is reported, and the function returns early,
+     * indicating failure to set up the pipeline properly.
+     *
+     * Additionally, a probe is attached to the sink pad of the on-screen display element (`nvosd`) to
+     * intercept and possibly manipulate the data passing through this pad. This is often used for
+     * purposes such as metadata extraction, custom processing, or debugging. The function
+     * `gst_pad_add_probe` is used for this, specifying a callback (`osd_sink_pad_buffer_probe`) that
+     * will be called for each buffer passing through the pad. This allows for real-time monitoring
+     * or processing of the video data.
+     *
+     * A periodic timeout is also set up using `g_timeout_add`, scheduling the `perf_print_callback`
+     * function to be called every 5000 milliseconds (5 seconds). This callback can be used for
+     * periodic tasks such as performance monitoring, logging, or updating a user interface with
+     * the latest statistics or state information of the pipeline.
+     *
+     * Finally, the reference to the `osd_sink_pad` is released using `gst_object_unref`, following
+     * good practice to manage object lifetimes and prevent memory leaks in GStreamer applications.
+     * This unref operation decrements the reference count of the object, allowing GStreamer to
+     * clean up the pad object when it is no longer needed.
+     */
     if (!gst_element_link_many(streammux, pgie, nvtracker,
-                               nvvidconv, nvosd, nvvidconv_postosd, caps, encoder, rtppay, sink, NULL))
-    {
+                               nvvidconv, nvosd, nvvidconv_postosd, caps, encoder, rtppay, sink, NULL)) {
         g_printerr("Elements could not be linked. Exiting.\n");
         return -1;
     }
 
-    // 添加探针，用于获取元数据
     osd_sink_pad = gst_element_get_static_pad(nvosd, "sink"); // 获取nvosd元素的sink pad
-    if (!osd_sink_pad)
-        g_print("Unable to get sink pad\n");
-    else
-        // 参数：pad, 探针类型, 探针回调函数, 回调函数的参数, 回调函数的参数释放函数
-        gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe, NULL, NULL); // 添加探针
+    if (!osd_sink_pad) g_print("Unable to get sink pad\n");
+    else gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe, NULL, NULL); // 添加探针
+    
     g_timeout_add(5000, perf_print_callback, &g_perf_data);                                                // 添加定时器，用于打印性能数据
     gst_object_unref(osd_sink_pad);
 
-    // ==================== 创建rtsp服务器， 用于将视频流发布到网络 ====================
-    GstRTSPServer *server;
-    GstRTSPMountPoints *mounts;
+    /**
+     * @brief Initializes and configures the RTSP server for streaming video.
+     *
+     * This section of the code is responsible for setting up an RTSP (Real Time Streaming Protocol) server
+     * using the GStreamer framework, which allows clients to connect and stream video data. The process
+     * involves creating a GstRTSPServer object, setting its service port, and attaching it to the main context
+     * for processing. The server listens on the specified RTSP port number for incoming connections.
+     *
+     * A GstRTSPMountPoints object is obtained from the server, which manages the mapping of media factory
+     * objects to specific mount points or URLs. A GstRTSPMediaFactory object is then created and configured
+     * to launch a streaming pipeline using the specified codec and UPD sink port number. The media factory
+     * is responsible for creating the media pipeline dynamically for each client that connects, allowing
+     * multiple clients to view the stream simultaneously.
+     *
+     * The factory is set to shared mode, meaning all clients will view the same video stream instead of
+     * each client triggering a separate instance of the pipeline. This is particularly useful for
+     * broadcasting live video to multiple viewers with minimal resource consumption.
+     *
+     * Finally, the media factory is added to the mount points under a specific RTSP path, making the
+     * video stream accessible at an RTSP URL formed by combining the server's address, port number,
+     * and the RTSP path. After setting up, the mount points object is unrefereced to clean up.
+     *
+     * The successful launch of the RTSP streaming service is indicated by printing the RTSP URL to
+     * the console, allowing users to connect to the stream using an RTSP client application.
+     */
+    GstRTSPServer       *server;
+    GstRTSPMountPoints  *mounts;
     GstRTSPMediaFactory *factory;
 
     server = gst_rtsp_server_new();
@@ -647,7 +566,26 @@ int main(int argc, char *argv[])
 
     printf("\n *** DeepStream: Launched RTSP Streaming at rtsp://localhost:%d%s ***\n\n", rtsp_port_num, rtsp_path);
 
-    // ==================== 启动管道 ====================
+    /**
+     * @brief Starts the GStreamer pipeline, enters the main loop to process streaming data, and performs cleanup upon exit.
+     *
+     * This section of the code is responsible for setting the GStreamer pipeline into the "playing" state,
+     * which initiates the streaming process. It then enters the GStreamer main loop (GMainLoop), which is
+     * essential for processing the data stream and handling GStreamer events. The loop continues until it
+     * receives a signal to terminate, such as an interrupt signal or a programmatic request to stop.
+     * 
+     * After exiting the main loop, the code gracefully stops the pipeline by setting its state to GST_STATE_NULL.
+     * This action stops the data processing and allows GStreamer to perform the necessary cleanup operations.
+     * Following this, the pipeline and other dynamically allocated resources are released to ensure there are
+     * no memory leaks. Specifically, it releases the reference to the pipeline object, removes any event listeners
+     * from the GStreamer message bus, and frees the main loop object. This ensures a clean and orderly shutdown
+     * of the streaming process.
+     *
+     * The use of g_print statements provides console output indicating the various stages of execution, including
+     * the start of playback, the running state, and confirmation of cleanup upon exit. This feedback is useful
+     * for debugging and monitoring the application's state.
+     */
+
     /* Set the pipeline to "playing" state */
     g_print("Using file: %s\n", argv[1]);
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
@@ -658,10 +596,11 @@ int main(int argc, char *argv[])
 
     /* Out of the main loop, clean up nicely */
     g_print("Returned, stopping playback\n");
-    gst_element_set_state(pipeline, GST_STATE_NULL); // 设置管道状态为NULL
+    gst_element_set_state(pipeline, GST_STATE_NULL); // Set pipeline status to NULL
     g_print("Deleting pipeline\n");
     gst_object_unref(GST_OBJECT(pipeline));
     g_source_remove(bus_watch_id);
     g_main_loop_unref(loop);
+
     return 0;
 }

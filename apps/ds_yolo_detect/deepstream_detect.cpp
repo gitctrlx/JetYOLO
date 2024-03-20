@@ -536,7 +536,7 @@ int main(int argc, char *argv[])
 
     /* Out of the main loop, clean up nicely */
     g_print("Returned, stopping playback\n");
-    gst_element_set_state(pipeline, GST_STATE_NULL); // 设置管道状态为NULL
+    gst_element_set_state(pipeline, GST_STATE_NULL); // Set pipeline status to NULL
     g_print("Deleting pipeline\n");
     gst_object_unref(GST_OBJECT(pipeline));
     g_source_remove(bus_watch_id);

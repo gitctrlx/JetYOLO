@@ -7,77 +7,104 @@ project(ds_tracker VERSION 0.1.0 LANGUAGES CXX CUDA)
 
 set(CMAKE_CUDA_STANDARD 14)
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_BUILD_TYPE Release)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-# CUDA
 find_package(CUDA REQUIRED)
-
+find_package(OpenCV REQUIRED)
+find_package(TensorRT REQUIRED)
 # TensorRT
 # set(TensorRT_INCLUDE_DIRS "/usr/include/aarch64-linux-gnu" CACHE STRING "TensorRT headers path")
 # set(TensorRT_LIBRARIES "/usr/lib/aarch64-linux-gnu" CACHE STRING "TensorRT libs path")
-find_package(TensorRT REQUIRED)
 
-# GStreamer
-set(GSTREAMER_INCLUDE_DIRS "/usr/include/gstreamer-1.0" CACHE STRING "GStreamer include path")
-set(GLIB_INCLUDE_DIRS "/usr/include/glib-2.0" CACHE STRING "GLib include path")
-set(GLIBCONFIG_INCLUDE_DIRS "/usr/lib/aarch64-linux-gnu/glib-2.0/include" CACHE STRING "GLib config include path")
+#find gstream-1.0 gstreamer-rtsp-server-1.0, add include dirs and link libraries
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-rtsp-server-1.0)
 
 # DeepStream
 set(DEEPSTREAM "/opt/nvidia/deepstream/deepstream" CACHE STRING "DeepStream root path")
 set(DS_LIBRARIES ${DEEPSTREAM}/lib)
 set(DS_INCLUDE_DIRS ${DEEPSTREAM}/sources/includes)
 
-#find gstream-1.0 gstreamer-rtsp-server-1.0, add include dirs and link libraries
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-rtsp-server-1.0)
 
-# NVDS_VERSION:=6.1
-# 
-# LIB_INSTALL_DIR?=/opt/nvidia/deepstream/deepstream-$(NVDS_VERSION)/lib/
-# APP_INSTALL_DIR?=/opt/nvidia/deepstream/deepstream-$(NVDS_VERSION)/bin/
-# APP_INSTALL_ROOT?=/opt/nvidia/deepstream/deepstream-$(NVDS_VERSION)
-# set variables
-set(LIB_INSTALL_DIR /opt/nvidia/deepstream/deepstream/lib/)
-set(APP_INSTALL_DIR /opt/nvidia/deepstream/deepstream/bin/)
-set(APP_INSTALL_ROOT /opt/nvidia/deepstream/deepstream)
-
-link_directories(
-    ${LIB_INSTALL_DIR}
-    /usr/local/cuda/lib64
+# Add executable
+add_executable(ds_tracker
+    deepstream_track.cpp
 )
-# add library to build task
-add_library(task SHARED
+add_executable(ds_tracker_app
+    deepstream_track_app.cpp
+    task/border_cross.cpp
+    task/gather.cpp
+
+)
+
+add_executable(ds_tracker_app_multi
+    deepstream_track_app_multi.cpp
     task/border_cross.cpp
     task/gather.cpp
 )
 
-add_executable(ds_track deepstream_track.cpp)
-target_include_directories(ds_track PRIVATE
-    /usr/local/cuda/include
+
+# Set library paths for DeepStream and CUDA
+link_directories(${DS_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
+
+# Include directories
+target_include_directories(ds_tracker PRIVATE
+    ${CUDA_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
-    ${APP_INSTALL_ROOT}/sources/includes
+    ${DS_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
+    ${TensorRT_INCLUDE_DIRS}
 )
-target_link_libraries(ds_track PRIVATE
-    ${GSTREAMER_LIBRARIES} cudart nvdsgst_meta nvds_meta nvds_yml_parser task
+target_include_directories(ds_tracker_app PRIVATE
+    ${CUDA_INCLUDE_DIRS}
+    ${GSTREAMER_INCLUDE_DIRS}
+    ${DS_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
+    ${TensorRT_INCLUDE_DIRS}
+    task
+)
+target_include_directories(ds_tracker_app_multi PRIVATE
+    ${CUDA_INCLUDE_DIRS}
+    ${GSTREAMER_INCLUDE_DIRS}
+    ${DS_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
+    ${TensorRT_INCLUDE_DIRS}
+    task
 )
 
-add_executable(ds_app deepstream_app.cpp)
-target_include_directories(ds_app PRIVATE
-    /usr/local/cuda/include
-    ${GSTREAMER_INCLUDE_DIRS}
-    ${APP_INSTALL_ROOT}/sources/includes
+# Link libraries
+target_link_libraries(ds_tracker PRIVATE
+    ${GSTREAMER_LIBRARIES}
+    ${CUDA_LIBRARIES} cudart
+    ${OpenCV_LIBS}
+    ${TensorRT_LIBRARIES}
+    ${DS_LIBRARIES}/libnvdsgst_meta.so
+    ${DS_LIBRARIES}/libnvds_meta.so
+    ${DS_LIBRARIES}/libnvds_yml_parser.so
 )
-target_link_libraries(ds_app PRIVATE
-    ${GSTREAMER_LIBRARIES} cudart nvdsgst_meta nvds_meta nvds_yml_parser task
+target_link_libraries(ds_tracker_app PRIVATE
+    ${GSTREAMER_LIBRARIES}
+    ${CUDA_LIBRARIES} cudart
+    ${OpenCV_LIBS}
+    ${TensorRT_LIBRARIES}
+    ${DS_LIBRARIES}/libnvdsgst_meta.so
+    ${DS_LIBRARIES}/libnvds_meta.so
+    ${DS_LIBRARIES}/libnvds_yml_parser.so
+)
+target_link_libraries(ds_tracker_app_multi PRIVATE
+    ${GSTREAMER_LIBRARIES}
+    ${CUDA_LIBRARIES} cudart
+    ${OpenCV_LIBS}
+    ${TensorRT_LIBRARIES}
+    ${DS_LIBRARIES}/libnvdsgst_meta.so
+    ${DS_LIBRARIES}/libnvds_meta.so
+    ${DS_LIBRARIES}/libnvds_yml_parser.so
 )
 
-add_executable(ds_app_multi deepstream_app_multi.cpp)
-target_include_directories(ds_app_multi PRIVATE
-    /usr/local/cuda/include
-    ${GSTREAMER_INCLUDE_DIRS}
-    ${APP_INSTALL_ROOT}/sources/includes
-)
-target_link_libraries(ds_app_multi PRIVATE
-    ${GSTREAMER_LIBRARIES} cudart nvdsgst_meta nvds_meta nvds_yml_parser task
-)
+
+# Ensure the linker can find the CUDA libraries
+target_link_directories(ds_tracker PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
+target_link_directories(ds_tracker_app PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
+target_link_directories(ds_tracker_app_multi PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
