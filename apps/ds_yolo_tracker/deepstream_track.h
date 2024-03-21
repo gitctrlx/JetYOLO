@@ -19,6 +19,7 @@
 #include <sstream>
 #include <fstream>
 #include <cmath>
+#include <cassert> 
 
 #include "utils.h"
 

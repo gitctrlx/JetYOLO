@@ -55,8 +55,6 @@ Polygon g_polygon;
 std::vector<guint> g_person_ids;
 std::vector<guint> g_vehicle_ids;
 
-guint vehicle_count = 0;
-guint person_count = 0;
 
 /**
  * @brief Reads points from a file and stores them in a Polygon object.
