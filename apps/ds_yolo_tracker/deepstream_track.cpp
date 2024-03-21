@@ -287,7 +287,6 @@ GstElement *create_source_bin(guint index, const gchar *uri)
 }
 
 
-// main函数
 int main(int argc, char *argv[])
 {
     GMainLoop   *loop              = NULL;
@@ -309,12 +308,6 @@ int main(int argc, char *argv[])
     GstPad      *osd_sink_pad      = NULL;
     GstCaps     *caps_filter       = NULL;
 
-    guint        bitrate           = 5000000;      // 比特率
-    gchar       *codec             = "H264";       // 设置编码格式
-    guint        updsink_port_num  = 5400;         // 设置端口号
-    guint        rtsp_port_num     = 8554;         // 设置RTSP端口号
-    gchar       *rtsp_path         = "/ds-test";   // 设置RTSP路径
-
     int current_device             = -1;
     cudaGetDevice(&current_device);
     struct cudaDeviceProp prop;
@@ -332,22 +325,22 @@ int main(int argc, char *argv[])
     loop = g_main_loop_new(NULL, FALSE);
 
     
-     /**
-   * @brief Initializes the GStreamer elements required for the pipeline.
-   *
-   * This code block is responsible for creating the various GStreamer elements that make up
-   * the streaming pipeline. Each element has a specific role in the processing and handling
-   * of video streams, from input to output.
-   */
-    pipeline          = gst_pipeline_new("ds-tracker-pipeline");                           // 创建管道
-    source            = create_source_bin(0, argv[1]);                                     // 创建source_bin元素， 用于从文件中读取视频流
-    streammux         = gst_element_factory_make("nvstreammux", "stream-muxer");           // 创建流复用器， 用于将多个流合并为一个流 ， 以及将多帧画面打包batch
-    pgie              = gst_element_factory_make("nvinfer", "primary-nvinference-engine"); // 创建PGIE元素， 用于执行推理
-    nvtracker         = gst_element_factory_make("nvtracker", "tracker");                  // 创建tracker元素， 用于跟踪识别到的物体
-    nvvidconv         = gst_element_factory_make("nvvideoconvert", "nvvideo-converter");   // 创建nvvidconv元素， 用于将NV12转换为RGBA
-    nvosd             = gst_element_factory_make("nvdsosd", "nv-onscreendisplay");         // 创建nvosd元素， 用于在转换后的RGBA缓冲区上绘制
-    nvvidconv_postosd = gst_element_factory_make("nvvideoconvert", "convertor_postosd");   // 创建nvvidconv_postosd元素， 用于将NV12转换为RGBA
-    caps              = gst_element_factory_make("capsfilter", "filter");                  // 创建caps元素， 用于设置视频格式
+    /**
+     * @brief Initializes the GStreamer elements required for the pipeline.
+     *
+     * This code block is responsible for creating the various GStreamer elements that make up
+     * the streaming pipeline. Each element has a specific role in the processing and handling
+     * of video streams, from input to output.
+     */
+    pipeline          = gst_pipeline_new("ds-tracker-pipeline");                           // Create pipeline
+    source            = create_source_bin(0, argv[1]);                                     // Create a source'bin element to read video streams from a file
+    streammux         = gst_element_factory_make("nvstreammux", "stream-muxer");           // Create a stream multiplexer to merge multiple streams into one stream and package multiple frames into a batch
+    pgie              = gst_element_factory_make("nvinfer", "primary-nvinference-engine"); // Create PGIE elements for executing inference
+    nvtracker         = gst_element_factory_make("nvtracker", "tracker");                  // Create a tracker element to track recognized objects
+    nvvidconv         = gst_element_factory_make("nvvideoconvert", "nvvideo-converter");   // Create nvvidconv elements to convert NV12 to RGBA
+    nvosd             = gst_element_factory_make("nvdsosd", "nv-onscreendisplay");         // Create an nvosd element to draw on the converted RGBA buffer
+    nvvidconv_postosd = gst_element_factory_make("nvvideoconvert", "convertor_postosd");   // Create the nvvidconv_postosd element to convert NV12 to RGBA
+    caps              = gst_element_factory_make("capsfilter", "filter");                  // Create caps elements to set video format
 
     // Determine the correct encoder and RTP payload packer based on the specified codec.
     const gchar *encoder_element, *rtppay_element;
@@ -428,22 +421,6 @@ int main(int argc, char *argv[])
 
     /**
      * @brief Adds a series of elements to the GStreamer pipeline.
-     *
-     * This function call adds multiple GStreamer elements to a previously created pipeline container (`pipeline`). 
-     * The elements added are:
-     * - `source`: The source element, responsible for providing the initial video stream.
-     * - `streammux`: Stream multiplexer, capable of combining multiple streams or managing single streams.
-     * - `pgie`: Primary GIE (GstInference Engine), used for running inference (e.g., object detection) on the video stream.
-     * - `nvvidconv`: Video converter, typically used for converting video formats (e.g., from NV12 to RGBA).
-     * - `nvosd`: On-Screen Display, for rendering overlays such as bounding boxes or text over the video.
-     * - `nvvidconv_postosd`: Another video converter, used post-OSD for possibly another format conversion before encoding.
-     * - `caps`: Caps filter, defining the capabilities (media type, format) of the connection between elements.
-     * - `encoder`: Video encoder, compresses the video stream into a codec format (e.g., H264, H265).
-     * - `rtppay`: RTP payload packer, packages the encoded video for streaming over network protocols.
-     * - `sink`: The sink element, which outputs the video stream, typically to a network or file.
-     *
-     * All these elements are necessary for a complete video processing and streaming pipeline, from source to sink. 
-     * The `NULL` terminator is required to signal the end of the arguments list to `gst_bin_add_many`.
      */
     gst_bin_add_many(GST_BIN(pipeline),
                      source, streammux, pgie, nvtracker,
@@ -451,24 +428,8 @@ int main(int argc, char *argv[])
 
     /**
      * @brief Links the source element to the stream multiplexer's sink pad.
-     *
-     * This segment obtains a "sink" pad from the stream multiplexer (`streammux`) and a "src" pad from
-     * the source element (`source`), and attempts to link them. This connection is essential for directing
-     * the video stream from the source into the stream multiplexer, where it can be combined with other
-     * streams or processed as a single stream. The pad names "sink_0" and "src" are used to identify the
-     * specific pads for linking.
-     * 
-     * If the linking fails, an error message is printed, and the function returns early, indicating an
-     * inability to correctly set up the streaming pipeline. This failure typically suggests a
-     * compatibility issue between the source and multiplexer formats or configurations.
-     * 
-     * After the linking attempt, the reference counts for the obtained pads are decremented using
-     * `gst_object_unref`, ensuring proper memory management by allowing GStreamer to free the pad
-     * resources when they are no longer needed.
      */
     GstPad *sinkpad, *srcpad;
-    gchar pad_name_sink[16] = "sink_0";
-    gchar pad_name_src[16] = "src";
 
     sinkpad = gst_element_get_request_pad(streammux, pad_name_sink);
     srcpad = gst_element_get_static_pad(source, pad_name_src);
@@ -481,42 +442,14 @@ int main(int argc, char *argv[])
     gst_object_unref(sinkpad);
     gst_object_unref(srcpad);
 
-    /**
-     * @brief Links the GStreamer elements into a pipeline and sets up monitoring.
-     *
-     * This code segment is crucial for constructing the streaming pipeline by sequentially linking
-     * multiple GStreamer elements. The `gst_element_link_many` function attempts to link the elements
-     * starting from the stream multiplexer (`streammux`) to the UDP sink (`sink`) in the order they
-     * appear. This establishes the flow of data from the video source through various processing stages,
-     * including inference (`pgie`), video conversion (`nvvidconv`, `nvvidconv_postosd`), on-screen display
-     * (`nvosd`), encoding (`encoder`), RTP payload packaging (`rtppay`), and finally network transmission
-     * (`sink`). If any element fails to link, an error is reported, and the function returns early,
-     * indicating failure to set up the pipeline properly.
-     *
-     * Additionally, a probe is attached to the sink pad of the on-screen display element (`nvosd`) to
-     * intercept and possibly manipulate the data passing through this pad. This is often used for
-     * purposes such as metadata extraction, custom processing, or debugging. The function
-     * `gst_pad_add_probe` is used for this, specifying a callback (`osd_sink_pad_buffer_probe`) that
-     * will be called for each buffer passing through the pad. This allows for real-time monitoring
-     * or processing of the video data.
-     *
-     * A periodic timeout is also set up using `g_timeout_add`, scheduling the `perf_print_callback`
-     * function to be called every 5000 milliseconds (5 seconds). This callback can be used for
-     * periodic tasks such as performance monitoring, logging, or updating a user interface with
-     * the latest statistics or state information of the pipeline.
-     *
-     * Finally, the reference to the `osd_sink_pad` is released using `gst_object_unref`, following
-     * good practice to manage object lifetimes and prevent memory leaks in GStreamer applications.
-     * This unref operation decrements the reference count of the object, allowing GStreamer to
-     * clean up the pad object when it is no longer needed.
-     */
+    
     if (!gst_element_link_many(streammux, pgie, nvtracker,
                                nvvidconv, nvosd, nvvidconv_postosd, caps, encoder, rtppay, sink, NULL)) {
         g_printerr("Elements could not be linked. Exiting.\n");
         return -1;
     }
 
-    osd_sink_pad = gst_element_get_static_pad(nvosd, "sink"); // 获取nvosd元素的sink pad
+    osd_sink_pad = gst_element_get_static_pad(nvosd, "sink"); 
     if (!osd_sink_pad) g_print("Unable to get sink pad\n");
     else gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe, NULL, NULL); // 添加探针
     
@@ -525,28 +458,6 @@ int main(int argc, char *argv[])
 
     /**
      * @brief Initializes and configures the RTSP server for streaming video.
-     *
-     * This section of the code is responsible for setting up an RTSP (Real Time Streaming Protocol) server
-     * using the GStreamer framework, which allows clients to connect and stream video data. The process
-     * involves creating a GstRTSPServer object, setting its service port, and attaching it to the main context
-     * for processing. The server listens on the specified RTSP port number for incoming connections.
-     *
-     * A GstRTSPMountPoints object is obtained from the server, which manages the mapping of media factory
-     * objects to specific mount points or URLs. A GstRTSPMediaFactory object is then created and configured
-     * to launch a streaming pipeline using the specified codec and UPD sink port number. The media factory
-     * is responsible for creating the media pipeline dynamically for each client that connects, allowing
-     * multiple clients to view the stream simultaneously.
-     *
-     * The factory is set to shared mode, meaning all clients will view the same video stream instead of
-     * each client triggering a separate instance of the pipeline. This is particularly useful for
-     * broadcasting live video to multiple viewers with minimal resource consumption.
-     *
-     * Finally, the media factory is added to the mount points under a specific RTSP path, making the
-     * video stream accessible at an RTSP URL formed by combining the server's address, port number,
-     * and the RTSP path. After setting up, the mount points object is unrefereced to clean up.
-     *
-     * The successful launch of the RTSP streaming service is indicated by printing the RTSP URL to
-     * the console, allowing users to connect to the stream using an RTSP client application.
      */
     GstRTSPServer       *server;
     GstRTSPMountPoints  *mounts;
@@ -568,22 +479,6 @@ int main(int argc, char *argv[])
 
     /**
      * @brief Starts the GStreamer pipeline, enters the main loop to process streaming data, and performs cleanup upon exit.
-     *
-     * This section of the code is responsible for setting the GStreamer pipeline into the "playing" state,
-     * which initiates the streaming process. It then enters the GStreamer main loop (GMainLoop), which is
-     * essential for processing the data stream and handling GStreamer events. The loop continues until it
-     * receives a signal to terminate, such as an interrupt signal or a programmatic request to stop.
-     * 
-     * After exiting the main loop, the code gracefully stops the pipeline by setting its state to GST_STATE_NULL.
-     * This action stops the data processing and allows GStreamer to perform the necessary cleanup operations.
-     * Following this, the pipeline and other dynamically allocated resources are released to ensure there are
-     * no memory leaks. Specifically, it releases the reference to the pipeline object, removes any event listeners
-     * from the GStreamer message bus, and frees the main loop object. This ensures a clean and orderly shutdown
-     * of the streaming process.
-     *
-     * The use of g_print statements provides console output indicating the various stages of execution, including
-     * the start of playback, the running state, and confirmation of cleanup upon exit. This feedback is useful
-     * for debugging and monitoring the application's state.
      */
 
     /* Set the pipeline to "playing" state */
@@ -596,7 +491,7 @@ int main(int argc, char *argv[])
 
     /* Out of the main loop, clean up nicely */
     g_print("Returned, stopping playback\n");
-    gst_element_set_state(pipeline, GST_STATE_NULL); // Set pipeline status to NULL
+    gst_element_set_state(pipeline, GST_STATE_NULL);
     g_print("Deleting pipeline\n");
     gst_object_unref(GST_OBJECT(pipeline));
     g_source_remove(bus_watch_id);

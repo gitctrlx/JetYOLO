@@ -30,10 +30,10 @@ typedef struct
 {
     std::vector<guint> g_person_ids;
     std::vector<guint> g_vehicle_ids;
-    Polygon g_ploygon;
+    Polygon g_polygon;
 
 } SOURCE_INFO;
-SOURCE_INFO g_source_info[2]; // Initialize to two original inputs
+
 
 /**
  * @brief Structure to hold performance data.
@@ -49,6 +49,15 @@ typedef struct
 } PERF_DATA;
 PERF_DATA g_perf_data = {0, 0, 0.0};
 
+
+gint frame_number = 0;
+Polygon g_polygon;
+std::vector<guint> g_person_ids;
+std::vector<guint> g_vehicle_ids;
+
+guint vehicle_count = 0;
+guint person_count = 0;
+
 /**
  * @brief Reads points from a file and stores them in a Polygon object.
  * 
@@ -62,7 +71,7 @@ PERF_DATA g_perf_data = {0, 0, 0.0};
  * @param width The width of the original image.
  * @param height The height of the original image.
  */
-void readPoints(std::string filename, Polygon &g_ploygon, int width, int height)
+void readPoints(std::string filename, Polygon &g_polygon, int width, int height)
 {
     std::ifstream file(filename);
     std::string str;
@@ -76,7 +85,7 @@ void readPoints(std::string filename, Polygon &g_ploygon, int width, int height)
         // recover to original size
         x = std::to_string(std::stof(x) * width);
         y = std::to_string(std::stof(y) * height);
-        g_ploygon.push_back({std::stoi(x), std::stoi(y)});
+        g_polygon.push_back({std::stoi(x), std::stoi(y)});
     }
 }
 

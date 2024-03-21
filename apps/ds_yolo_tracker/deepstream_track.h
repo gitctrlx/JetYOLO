@@ -20,6 +20,19 @@
 #include <fstream>
 #include <cmath>
 
+#include "utils.h"
+
+guint        bitrate           = 5000000;      // bit rate
+gchar       *codec             = "H264";       // Set encoding format
+guint        updsink_port_num  = 5400;         // Set port number
+guint        rtsp_port_num     = 8554;         // Set RTSP port number
+gchar       *rtsp_path         = "/ds-test";   // Set RTSP path
+
+SOURCE_INFO  g_source_info[2]; // Initialize to two original inputs
+
+gchar        pad_name_sink[16] = "sink_0";
+gchar        pad_name_src[16]  = "src";
+
 // gie config
 #define PGIE_CONFIG_FILE "./configs/ds_yolo_tracker_config/pgie_config.txt"
 #define MAX_DISPLAY_LEN 64
@@ -41,10 +54,8 @@
  * based on the fastest source's framerate. */
 #define MUXER_BATCH_TIMEOUT_USEC 40000
 
-gint frame_number = 0;
-
 /* APP config */
-#define APP_CONFIG_FILE "./configs/ds_yolo_tracker_config/polygon_1.txt"
+#define POLYGON_FILE_PATH "./configs/ds_yolo_tracker_config/polygon_1.txt"
 
 /* Tracker config parsing */
 #define CONFIG_GROUP_TRACKER "tracker"
