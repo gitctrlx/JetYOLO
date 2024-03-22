@@ -15,8 +15,20 @@
 #include "nvds_analytics_meta.h"
 #include <gst/rtsp-server/rtsp-server.h>
 
+#include "utils.h"
+
+guint        bitrate           = 5000000;      // bit rate
+gchar       *codec             = "H264";       // Set encoding format
+guint        updsink_port_num  = 5400;         // Set port number
+guint        rtsp_port_num     = 8554;         // Set RTSP port number
+gchar       *rtsp_path         = "/ds-test";   // Set RTSP path
+
+gchar        pad_name_sink[16] = "sink_0";
+gchar        pad_name_src[16]  = "src";
+
 // gie config
-#define PGIE_CONFIG_FILE "./configs/ds_yolo_detect_config/pgie_config.txt"
+#define PGIE_CONFIG_FILE "./configs/ds_yolo_lpr_config/pgie_config.txt"
+#define THRID_CONFIG_FILE "./configs/ds_yolo_lpr_config/lpr_config_sgie_ch.yml"
 #define MAX_DISPLAY_LEN 64
 
 #define PGIE_CLASS_ID_VEHICLE 2
@@ -31,7 +43,5 @@
 /* Muxer batch formation timeout, for e.g. 40 millisec. Should ideally be set
  * based on the fastest source's framerate. */
 #define MUXER_BATCH_TIMEOUT_USEC 40000
-
-gint frame_number = 0;
 
 #endif

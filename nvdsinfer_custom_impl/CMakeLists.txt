@@ -44,14 +44,20 @@ add_library(nvdsinfer_custom_impl_Yolo_pose SHARED
         nvdsparsepose_Yolo.cpp 
         )
 
+add_library(nvdsinfer_custom_impl_Yolo_lpr SHARED 
+        nvinfer_custom_lpr_parser.cpp
+)
+
 # Link libraries
 target_link_libraries(nvdsparsebbox_mmyolo PRIVATE ${CUDA_LIBRARIES} nvinfer nvinfer_plugin)
 target_link_libraries(nvdsinfer_custom_impl_Yolo PRIVATE ${CUDA_LIBRARIES} nvinfer nvinfer_plugin)
 target_link_libraries(nvdsinfer_custom_impl_Yolo_face PRIVATE ${CUDA_LIBRARIES} nvinfer nvinfer_plugin)
 target_link_libraries(nvdsinfer_custom_impl_Yolo_pose PRIVATE ${CUDA_LIBRARIES} nvinfer nvinfer_plugin)
+target_link_libraries(nvdsinfer_custom_impl_Yolo_lpr PRIVATE ${CUDA_LIBRARIES} nvinfer nvinfer_plugin)
 
 # Set include directories for each library
 target_include_directories(nvdsparsebbox_mmyolo PRIVATE ${CUDA_INCLUDE_DIRS} ${TensorRT_INCLUDE_DIRS} ${DS_INCLUDE_DIRS})
 target_include_directories(nvdsinfer_custom_impl_Yolo PRIVATE ${CUDA_INCLUDE_DIRS} ${TensorRT_INCLUDE_DIRS} ${DS_INCLUDE_DIRS})
 target_include_directories(nvdsinfer_custom_impl_Yolo_face PRIVATE ${CUDA_INCLUDE_DIRS} ${TensorRT_INCLUDE_DIRS} ${DS_INCLUDE_DIRS})
 target_include_directories(nvdsinfer_custom_impl_Yolo_pose PRIVATE ${CUDA_INCLUDE_DIRS} ${TensorRT_INCLUDE_DIRS} ${DS_INCLUDE_DIRS})
+target_include_directories(nvdsinfer_custom_impl_Yolo_lpr PRIVATE ${CUDA_INCLUDE_DIRS} ${TensorRT_INCLUDE_DIRS} ${DS_INCLUDE_DIRS})

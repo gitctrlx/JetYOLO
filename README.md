@@ -313,4 +313,5 @@ This project references many excellent works from predecessors, and some useful 
 4. [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
 5. [DeepStream-Yolo-Face](https://github.com/marcoslucianops/DeepStream-Yolo-Face)
 6. [DeepStream-Yolo-Pose](https://github.com/marcoslucianops/DeepStream-Yolo-Pose)
+7. [deepstream_lpr_app](https://github.com/NVIDIA-AI-IOT/deepstream_lpr_app)
 

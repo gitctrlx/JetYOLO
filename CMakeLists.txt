@@ -14,6 +14,7 @@ option(BUILD_TOOLS_POLYGON_DRAW "Build Polygon_Draw" ON)
 # apps
 option(BUILD_APPS_DS_YOLO_DETECT "Build ds_yolo_detect" OFF)
 option(BUILD_APPS_DS_YOLO_FACE "Build ds_yolo_face" OFF)
+option(BUILD_APPS_DS_YOLO_LPR "Build ds_yolo_LPR" OFF)
 option(BUILD_APPS_DS_YOLO_POSE "Build ds_yolo_pose" OFF)
 option(BUILD_APPS_DS_YOLO_TRACKER "Build ds_yolo_tracker" OFF)
 
@@ -36,6 +37,10 @@ endif()
 
 if(BUILD_APPS_DS_YOLO_FACE)
     add_subdirectory(apps/ds_yolo_face)
+endif()
+
+if(BUILD_APPS_DS_YOLO_LPR)
+    add_subdirectory(apps/ds_yolo_lpr)
 endif()
 
 if(BUILD_APPS_DS_YOLO_POSE)
