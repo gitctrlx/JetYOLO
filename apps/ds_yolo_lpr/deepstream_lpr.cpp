@@ -1,145 +1,139 @@
 #include "deepstream_lpr.h"
 #include "utils.h"
 
-
-static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info,
-                                                   gpointer u_data)
-{
-  GstBuffer *buf = (GstBuffer *)info->data;
-  guint num_rects = 0;
-  NvDsObjectMeta *obj_meta = NULL;
-  guint vehicle_count = 0;
-  guint person_count = 0;
-  guint plate_count = 0;
-  guint label_i = 0;
-  NvDsMetaList *l_frame = NULL;
-  NvDsMetaList *l_obj = NULL;
-  NvDsMetaList *l_class = NULL;
-  NvDsMetaList *l_label = NULL;
-  NvDsClassifierMeta *class_meta = NULL;
-  NvDsLabelInfo *label_info = NULL;
-  NvDsDisplayMeta *display_meta = NULL;
-  guint plate_str_len = 0;
-
-  NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf); // 获取批处理元数据
-  // 遍历批处理元数据，得到每一帧的元数据
-  for (l_frame = batch_meta->frame_meta_list; l_frame != NULL;
-       l_frame = l_frame->next)
-  {
-    // 获取每一帧的元数据
-    NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
-    int offset = 0;
-    // 遍历每一帧的元数据，得到每一个检测到的物体的元数据
-    for (l_obj = frame_meta->obj_meta_list; l_obj != NULL;
-         l_obj = l_obj->next)
-    {
-      // 获取每一个检测到的物体的元数据
-      obj_meta = (NvDsObjectMeta *)(l_obj->data);
-      // 设置文字内容
-      obj_meta->text_params.display_text = (char *)g_malloc0(MAX_DISPLAY_LEN);
-
-     
-      // 车牌检测
-      if (obj_meta->unique_component_id == 1)
-      {
-        // 检测框边框
-        obj_meta->rect_params.border_color.red = 1.0;
-        obj_meta->rect_params.border_color.green = 0.0;
-        obj_meta->rect_params.border_color.blue = 1.0;
-        obj_meta->rect_params.border_width = 1;
-        // 背景颜色
-        obj_meta->rect_params.has_bg_color = 1;
-        obj_meta->rect_params.bg_color.red = 1.0;
-        obj_meta->rect_params.bg_color.green = 0.0;
-        obj_meta->rect_params.bg_color.blue = 1.0;
-        obj_meta->rect_params.bg_color.alpha = 0.1;
-
-        // 设置文字背景透明
-        obj_meta->text_params.set_bg_clr = 0;
-      }
-
-      // 车牌识别结果（分类结果）
-      for (l_class = obj_meta->classifier_meta_list; l_class != NULL; l_class = l_class->next)
-      {
-        class_meta = (NvDsClassifierMeta *)(l_class->data);
-
-        if (class_meta->unique_component_id == 3) // unique_component_id = 3 表示来自于车牌识别模型
-        {
-          // 遍历每一个分类结果，label_info_list是一个链表，每一个节点是一个NvDsLabelInfo结构体：https://docs.nvidia.com/metropolis/deepstream/sdk-api/struct__NvDsLabelInfo.html
-          for (label_i = 0, l_label = class_meta->label_info_list; label_i < class_meta->num_labels && l_label; label_i++, l_label = l_label->next)
-          {
-            label_info = (NvDsLabelInfo *)(l_label->data);
-            // 获取车牌字符长度
-            plate_str_len = strlen(label_info->result_label);
-            // 如果是车牌识别结果，且置信度大于0.5，且字符长度大于9
-            if (label_info->label_id == 0 && label_info->result_class_id == 1 && label_info->result_prob > 0.2 && plate_str_len >= 9)
-            {
-              // 设置文字格式
-              obj_meta->text_params.set_bg_clr = 1;
-              obj_meta->text_params.text_bg_clr.red = 0.0;
-              obj_meta->text_params.text_bg_clr.green = 0.0;
-              obj_meta->text_params.text_bg_clr.blue = 0.0;
-              obj_meta->text_params.text_bg_clr.alpha = 0.8;
-
-              obj_meta->text_params.font_params.font_color.red = 1.0;
-              obj_meta->text_params.font_params.font_color.green = 1.0;
-              obj_meta->text_params.font_params.font_color.blue = .0;
-              obj_meta->text_params.font_params.font_size = 15;
-              // 设置文字位置
-              obj_meta->text_params.x_offset = obj_meta->rect_params.left;
-              obj_meta->text_params.y_offset = obj_meta->rect_params.top - 30;
-
-              //  设置显示的文字
-              // printf("Plate License %s, probability: %0.1f %% , len: %d\n", label_info->result_label, label_info->result_prob * 100, plate_str_len);
-              snprintf(obj_meta->text_params.display_text, MAX_DISPLAY_LEN, "%s  %0.1f%%", label_info->result_label, label_info->result_prob * 100);
-
-              plate_count++;
-            }
-          }
-        }
-      }
+/**
+ * @brief Sets the properties of an NvDsObjectMeta object.
+ *
+ * This function sets the border color, background color, and display text of an NvDsObjectMeta object.
+ *
+ * @param obj_meta The NvDsObjectMeta object to set the properties for.
+ * @param border_color An array of three floats representing the RGB values of the border color.
+ * @param bg_color An array of four floats representing the RGBA values of the background color.
+ * @param display_text_format The format string for the display text.
+ * @param ... Additional arguments to be formatted into the display text.
+ */
+static void set_object_meta_properties(NvDsObjectMeta *obj_meta, float border_color[3], float bg_color[4], const char* display_text_format, ...) {
+    // Ensure display_text is allocated or has enough space
+    if (obj_meta->text_params.display_text == NULL) {
+        obj_meta->text_params.display_text = (char *)g_malloc0(MAX_DISPLAY_LEN);
     }
-    // 获取显示元数据，用于在屏幕上绘制多边形
-    display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
 
-    // 添加文字
+    // Set border and background colors
+    obj_meta->rect_params.border_color.red = border_color[0];
+    obj_meta->rect_params.border_color.green = border_color[1];
+    obj_meta->rect_params.border_color.blue = border_color[2];
+    obj_meta->rect_params.border_width = 1;
+    obj_meta->rect_params.has_bg_color = 1;
+    obj_meta->rect_params.bg_color.red = bg_color[0];
+    obj_meta->rect_params.bg_color.green = bg_color[1];
+    obj_meta->rect_params.bg_color.blue = bg_color[2];
+    obj_meta->rect_params.bg_color.alpha = bg_color[3];
+
+    // Format and set display text
+    va_list args;
+    va_start(args, display_text_format);
+    vsnprintf(obj_meta->text_params.display_text, MAX_DISPLAY_LEN, display_text_format, args);
+    va_end(args);
+
+    obj_meta->text_params.font_params.font_size = 15; // Or any other logic for setting the font size
+}
+
+
+/**
+ * @brief Updates the display metadata with the number of plates detected.
+ * 
+ * This function initializes the first text_params in the display_meta and sets the display text
+ * to the number of plates detected. It also sets the font, font size, font color, and background color
+ * for the display text.
+ * 
+ * @param display_meta A pointer to the NvDsDisplayMeta structure representing the display metadata.
+ * @param plate_count The number of plates detected.
+ */
+static void update_display_meta(NvDsDisplayMeta *display_meta, guint plate_count) {
+    // Initialize the first text_params in the display_meta
     NvOSD_TextParams *txt_params = &display_meta->text_params[0];
     display_meta->num_labels = 1;
-    txt_params->display_text = (char *)g_malloc0(MAX_DISPLAY_LEN);
-    offset = snprintf(txt_params->display_text, MAX_DISPLAY_LEN, "Numberplate = %d ", plate_count);
-    // offset += snprintf(txt_params->display_text + offset, MAX_DISPLAY_LEN, "车牌 = %d ", plate_count);
 
-    // 设置文字的位置
+    // Allocate or ensure memory for display_text
+    if (txt_params->display_text == NULL) {
+        txt_params->display_text = (char *)g_malloc0(MAX_DISPLAY_LEN);
+    }
+
+    // Set the display text
+    snprintf(txt_params->display_text, MAX_DISPLAY_LEN, "Numberplate = %d", plate_count);
     txt_params->x_offset = 10;
     txt_params->y_offset = 12;
-
-    // 字体
     txt_params->font_params.font_name = "Serif";
     txt_params->font_params.font_size = 20;
     txt_params->font_params.font_color.red = 1.0;
     txt_params->font_params.font_color.green = 1.0;
     txt_params->font_params.font_color.blue = 1.0;
     txt_params->font_params.font_color.alpha = 1.0;
-
-    // 背景颜色
     txt_params->set_bg_clr = 1;
     txt_params->text_bg_clr.red = 0.0;
     txt_params->text_bg_clr.green = 0.0;
     txt_params->text_bg_clr.blue = 0.0;
     txt_params->text_bg_clr.alpha = 1.0;
+}
 
-    // 添加显示
-    nvds_add_display_meta_to_frame(frame_meta, display_meta);
-  }
+/**
+ * @brief Callback function for the pad probe on the sink pad of the OSD element.
+ *
+ * This function is called when a buffer is received on the sink pad of the OSD element.
+ * It processes the buffer and updates the display meta for the frame.
+ *
+ * @param pad The sink pad on which the probe is installed.
+ * @param info Information about the probe.
+ * @param u_data User data passed to the probe.
+ * @return The return value indicating the action to be taken by the pad probe.
+ */
+static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data) {
+    GstBuffer *buf = GST_BUFFER(info->data);
+    guint plate_count = 0;
+    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
 
-#if 0
-    g_print ("Frame Number = %d Number of objects = %d "
-            "Vehicle Count = %d Person Count = %d\n",
-            frame_number, num_rects, vehicle_count, person_count);
-#endif
-  frame_number++;
-  update_frame_counter();
-  return GST_PAD_PROBE_OK;
+    for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next) {
+        NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
+
+        for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next) {
+            NvDsObjectMeta *obj_meta = (NvDsObjectMeta *)(l_obj->data);
+            if (obj_meta->unique_component_id == 1) { // 1 is the unique ID for vehicles/plates
+                float border_color[] = {1.0, 0.0, 1.0};
+                float bg_color[] = {1.0, 0.0, 1.0, 0.1};
+
+                for (NvDsMetaList *l_class = obj_meta->classifier_meta_list; l_class != NULL; l_class = l_class->next) {
+                    NvDsClassifierMeta *class_meta = (NvDsClassifierMeta *)(l_class->data);
+                    if (class_meta->unique_component_id == 3) { // 3 is for plate recognition model
+                        for (NvDsMetaList *l_label = class_meta->label_info_list; l_label != NULL; l_label = l_label->next) {
+                            NvDsLabelInfo *label_info = (NvDsLabelInfo *)(l_label->data);
+                            guint plate_str_len = strlen(label_info->result_label);
+                            if (label_info->label_id == 0 && label_info->result_class_id == 1 && label_info->result_prob > 0.2 && plate_str_len >= 9) {
+                                // Set properties specific to recognized plates
+                                char display_text[MAX_DISPLAY_LEN];
+                                snprintf(display_text, MAX_DISPLAY_LEN, "%s  %0.1f%%", label_info->result_label, label_info->result_prob * 100);
+                                // Adjust the label position based on the license plate position before calling set_object_meta_properties
+                                obj_meta->text_params.x_offset = obj_meta->rect_params.left;
+                                obj_meta->text_params.y_offset = obj_meta->rect_params.top - 30; // Move the label position up by 30 pixels to avoid obstruction
+                                set_object_meta_properties(obj_meta, border_color, bg_color, display_text);
+                                plate_count++;
+                            }
+                        }
+                    }
+                }
+            }
+            // Additional conditions for other object types can be added here
+        }
+
+        // After processing all objects, update display meta for the frame
+        NvDsDisplayMeta *display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
+        update_display_meta(display_meta, plate_count);
+        nvds_add_display_meta_to_frame(frame_meta, display_meta);
+    }
+
+    // Increment frame number and update any counters if needed
+    frame_number++;
+    update_frame_counter();
+    return GST_PAD_PROBE_OK;
 }
 
 /**

@@ -108,7 +108,7 @@ static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo 
         }
 
         NvDsDisplayMeta *display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
-        // update_display_meta(display_meta, person_count, vehicle_count);
+        update_display_meta(display_meta, person_count, vehicle_count);
         nvds_add_display_meta_to_frame(frame_meta, display_meta);
     }
 
