@@ -50,13 +50,12 @@
 
 ## 📚 Introduction
 
-This project harnesses NVIDIA's CUDA and TensorRT through the DeepStream toolkit to enable the creation of real-world streaming analytics applications with ease. Aimed at lowering the entry barrier for developers, it provides a lightweight, intuitive platform that simplifies the entire development cycle of DeepStream applications, from model training to deployment and inference. Key features include:
+This project leverages the DeepStream toolkit along with NVIDIA's CUDA and TensorRT to effortlessly create real-time streaming analytics applications for a broad range of scenarios. Aimed at lowering the barrier to entry for developers, it offers a lightweight, intuitive platform that simplifies the entire development cycle of DeepStream applications, encompassing model deployment, inference, and TensorRT optimization. Key features include:
 
-- **Ease of Use**: Reduces complexity, enabling quick start and rapid development.
-- **Comprehensive Toolkit**: Includes all necessary tools for the development process, from training to deployment, ensuring a smooth workflow.
-- **Modular Design**: Tools can be used independently, catering to specific project needs.
-- **High-Performance Inference**: Features a high-efficiency inference framework optimized with TensorRT, including model quantization and performance analysis tools.
-- **Practical Case Studies**: Offers multiple real-world examples demonstrating the framework's applicability and effectiveness.
+- **Ease of Use**: Reduces project complexity, enabling quick startup and rapid development. Each component follows a modular design for further decoupling, allowing every tool and application to be independently utilized, meeting specific project requirements.
+- **Comprehensive Toolkit**: Includes all necessary tools for developing high-performance inference applications in edge computing, offering a suite from model export to modification, quantization, deployment, and optimization, ensuring a smooth development process and efficient model operation.
+- **High-Performance Inference**: We've also developed a high-efficiency inference framework, xtrt, based on [NVIDIA TensorRT](https://github.com/NVIDIA/TensorRT) and [CUDA](https://developer.nvidia.com/cuda-toolkit), integrated with [NVIDIA Polygraph](https://github.com/NVIDIA/TensorRT/tree/release/8.6/tools/Polygraphy), [ONNX GraphSurgeon](https://github.com/NVIDIA/TensorRT/tree/release/8.6/tools/onnx-graphsurgeon), and the [PPQ](https://github.com/openppl-public/ppq) quantization tool, among others. This framework features comprehensive model modification, quantization, and performance analysis tools for easy and quick debugging and optimization.
+- **Practical Case Studies**: Provides multiple real-world examples demonstrating the framework's applicability and effectiveness, with minor adjustments needed to fit a wide range of application scenarios.
 
 Our goal is to make the development of streaming analytics applications more accessible to developers of all skill levels, fostering the creation of innovative solutions across various domains.
 
