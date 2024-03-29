@@ -44,7 +44,7 @@
 
 ## 🎉 What's New
 
-✨**v0.1.0** First release on March 10, 2024:
+✨**v0.1.0** First release on March 10, 2024: 
 
 - JetYOLO is born!
 
@@ -290,15 +290,13 @@ deepstream-app -c deepstream_app_config.txt
 > - The top left corner shows the current frame's pedestrian and vehicle count.
 > - Detected individuals and vehicles within the frame will be marked with bounding boxes.
 
-这个示例来自`app/ds_detect`，这是它的pipeline：
+This example is based on the `app/ds_yolo_detect` directory, showcasing its processing pipeline as illustrated below:
 
 ![](./assets/ds_detect_pipe.png)
 
-运行后在vlc等播放器中输入：`rtsp://[运行应用的设备ip]:8554/ds-test`你将看到：
+Upon running the application, you can view the output stream on players like [VLC](https://www.videolan.org/vlc/) by entering: `rtsp://[IP address of the device running the application]:8554/ds-test`. This allows you to see:
 
-> Note：
->
-> 你可以在同一个局域网中的任何设备上查看输出的推流视频
+> **Note：**The streamed video output can be viewed on any device within the same local network.
 
 ![image-20240328113411809](./assets/image-20240328113411809.png)
 
@@ -313,6 +311,8 @@ We also provide some example applications created with `deepstream`, located in 
 #### Single-Stream Inference Application:
 
 This feature enables real-time tracking and boundary detection for individuals and vehicles using a single video stream. The application utilizes DeepStream for efficient processing.
+
+This example is based on the `app/ds_yolo_tracker` directory, showcasing its processing pipeline as illustrated below:
 
 ![](./assets/ds_track_pipe.png)
 
@@ -331,11 +331,17 @@ To view an inference example, execute the following command:
 > - The top-left corner shows the total count of pedestrians and vehicles that have passed.
 > - At the center is a boundary detection box; vehicles crossing this area are highlighted with a red bounding box.
 
+Upon running the application, you can view the output stream on players like [VLC](https://www.videolan.org/vlc/) by entering: `rtsp://[IP address of the device running the application]:8554/ds-test`. This allows you to see:
+
+> **Note：**The streamed video output can be viewed on any device within the same local network.
+
 ![image-20240326181100263](./assets/image-20240326181100263.png)
 
 #### Multi-Stream Application:
 
 This application extends the capabilities of the single-stream inference application to support simultaneous processing and analysis of multiple video streams. It enables efficient monitoring and boundary detection for individuals and vehicles across several feeds, leveraging NVIDIA DeepStream for optimized performance.
+
+This example is based on the `app/ds_yolo_tracker` directory, showcasing its processing pipeline as illustrated below:
 
 ![](./assets/ds_track_app_multi_pipe.png)
 
@@ -355,6 +361,10 @@ To run the application with multiple video feeds, use the following command synt
 > - **Overall Counts:** The top-left corner of each video feed display shows the total count of pedestrians and vehicles that have passed within that specific stream.
 > - **Boundary Detection Box:** A boundary detection box is presented at the center of each video feed. Vehicles crossing this predefined area in any of the streams are immediately highlighted with a red bounding box to signify a boundary violation.
 
+Upon running the application, you can view the output stream on players like [VLC](https://www.videolan.org/vlc/) by entering: `rtsp://[IP address of the device running the application]:8554/ds-test`. This allows you to see:
+
+> **Note：**The streamed video output can be viewed on any device within the same local network.
+
 ![image-20240329161014875](./assets/image-20240329161014875.png)
 
 
@@ -362,6 +372,8 @@ To run the application with multiple video feeds, use the following command synt
 ### License Plate Detection/Recognition
 
 The DeepStream application offers a comprehensive solution for detecting and recognizing license plates in real-time.
+
+This example is based on the `app/ds_yolo_lpr` directory, showcasing its processing pipeline as illustrated below:
 
 ![](./assets/ds_lpr_2.png)
 
@@ -380,7 +392,9 @@ To launch the license plate detection and recognition feature, use the following
 > - The number displayed in the top-left corner of the screen indicates the total count of license plates detected in the current frame.
 > - License plates within the frame are enclosed by detection boxes, and when the plate content is fully recognized, the plate number will be displayed above the detection box. The confidence level of the recognition result is shown on the right side of the detection box.
 
-Upon execution, the application displays the detected license plates and their recognized characters.
+Upon running the application, you can view the output stream on players like [VLC](https://www.videolan.org/vlc/) by entering: `rtsp://[IP address of the device running the application]:8554/ds-test`.  The application displays the detected license plates and their recognized characters.
+
+> **Note：**The streamed video output can be viewed on any device within the same local network.
 
 ![image-20240329145441072](./assets/image-20240329145441072.png)
 
