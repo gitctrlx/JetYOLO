@@ -54,7 +54,7 @@ This project leverages the DeepStream toolkit along with NVIDIA's CUDA and Tenso
 
 - **Ease of Use**: Reduces project complexity, enabling quick startup and rapid development. Each component follows a modular design for further decoupling, allowing every tool and application to be independently utilized, meeting specific project requirements.
 - **Comprehensive Toolkit**: Includes all necessary tools for developing high-performance inference applications in edge computing, offering a suite from model export to modification, quantization, deployment, and optimization, ensuring a smooth development process and efficient model operation.
-- **High-Performance Inference**: We've also developed a high-efficiency inference framework, xtrt, based on [NVIDIA TensorRT](https://github.com/NVIDIA/TensorRT) and [CUDA](https://developer.nvidia.com/cuda-toolkit), integrated with [NVIDIA Polygraph](https://github.com/NVIDIA/TensorRT/tree/release/8.6/tools/Polygraphy), [ONNX GraphSurgeon](https://github.com/NVIDIA/TensorRT/tree/release/8.6/tools/onnx-graphsurgeon), and the [PPQ](https://github.com/openppl-public/ppq) quantization tool, among others. This framework features comprehensive model modification, quantization, and performance analysis tools for easy and quick debugging and optimization.
+- **High-Performance Inference**: We've also developed a high-efficiency inference framework, **[xtrt](https://github.com/gitctrlx/xtrt)**, based on [NVIDIA TensorRT](https://github.com/NVIDIA/TensorRT) and [CUDA](https://developer.nvidia.com/cuda-toolkit), integrated with [NVIDIA Polygraph](https://github.com/NVIDIA/TensorRT/tree/release/8.6/tools/Polygraphy), [ONNX GraphSurgeon](https://github.com/NVIDIA/TensorRT/tree/release/8.6/tools/onnx-graphsurgeon), and the [PPQ](https://github.com/openppl-public/ppq) quantization tool, among others. This framework features comprehensive model modification, quantization, and performance analysis tools for easy and quick debugging and optimization.
 - **Practical Case Studies**: Provides multiple real-world examples demonstrating the framework's applicability and effectiveness, with minor adjustments needed to fit a wide range of application scenarios.
 
 Our goal is to make the development of streaming analytics applications more accessible to developers of all skill levels, fostering the creation of innovative solutions across various domains.
@@ -134,7 +134,7 @@ To build the `JetYOLO` components, you will first need the following software pa
 
 ### 🛠️ build
 
-If you have completed the above environment setup, you can proceed with the following steps. Building the Basic Inference Framework：
+If you have completed the above environment setup, you can proceed with the following steps. Building the Basic Inference Framework, the following code is located in [`scripts/run.sh`](https://github.com/gitctrlx/JetYOLO/blob/main/scripts/run.sh)：
 
 ```bash
 git clone --recurse-submodules https://github.com/gitctrlx/JetYOLO.git
@@ -163,7 +163,7 @@ Configure your build with the following options to tailor the setup to your need
 - **`-DBUILD_APPS_DS_YOLO_LPR=ON`**: Determines whether to build the `app/ds_yolo_lpr` application.
 - **`-DBUILD_APPS_DS_YOLO_TRACKER=ON`**: Determines whether to build the `app/ds_yolo_tracker` application.
 
-> If you are unsure about your **CUDA SM** version, you can run `tools/cudasm.sh` to check. For more details, please see [FAQ](doc/faq.md).
+> If you are unsure about your **CUDA SM** version, you can run `xtrt/tools/cudasm.sh` to check. For more details, please see [FAQ](doc/faq.md).
 >
 > We recommend enabling all options for the build. If you encounter errors during compilation, you can selectively disable some options to troubleshoot, or feel free to submit an issue to us. We are more than happy to assist in resolving it.
 
@@ -199,25 +199,25 @@ Place the prepared ONNX file into the weights folder. You can directly download 
 
 #### 3. Building the Engine
 
-Once the dataset is ready, the next step is to construct the engine. Below is an example for building a YOLOv5s TensorRT engine, with the corresponding code located in `scripts/build.sh`:
+Once the dataset is ready, the next step is to construct the engine. Below is an example for building a YOLOv5s TensorRT engine, with the corresponding code located in [`scripts/build_engine.sh`](https://github.com/gitctrlx/JetYOLO/blob/main/scripts/build_engine.sh):
 
 ```sh
-./build/build \
-    "./weights/yolov5s_trt8.onnx" \    # ONNX Model File Path
-    "./engine/yolo.plan" \             # TensorRT Engine Save Path
-    "int8" \                           # Quantization Precision
-    3 \                                # TRT Optimization Level
-    1 1 1 \                            # Dynamic Shape Parameters
+./build/xtrt/build \
+    "./xtrt/weights/yolov5s_trt8.onnx" \    # ONNX Model File Path
+    "./xtrt/engine/yolo.plan" \             # TensorRT Engine Save Path
+    "int8" \                                # Quantization Precision
+    3 \                                     # TRT Optimization Level
+    1 1 1 \                                 # Dynamic Shape Parameters
     3 3 3 \							 
     640 640 640 \					   
     640 640 640 \					   
-    550 \                              # Calibration Iterations
-    "./data/coco/val2017" \	           # Calibration Dataset Path
-    "./data/coco/filelist.txt" \       # Calibration Image List
-    "./engine/int8Cache/int8.cache" \  # Calibration File Save Path
-    true \                             # Timing Cache Usage
-    false \                            # Ignore Timing Cache Mismatch
-    "./engine/timingCache/timing.cache"# Timing Cache Save Path
+    550 \                                   # Calibration Iterations
+    "./xtrt/data/coco/val2017" \            # Calibration Dataset Path
+    "./xtrt/data/coco/filelist.txt" \       # Calibration Image List
+    "./xtrt/engine/int8Cache/int8.cache" \  # Calibration File Save Path
+    true \                                  # Timing Cache Usage
+    false \                                 # Ignore Timing Cache Mismatch
+    "./xtrt/engine/timingCache/timing.cache"# Timing Cache Save Path
 ```
 
 For a detailed analysis of the code's parameters, please see the [detailed documentation](doc).
@@ -230,24 +230,24 @@ For a detailed analysis of the code's parameters, please see the [detailed docum
 
 
 ```sh
-./build/yolo_det_img \
-    "engine/yolo_m.plan" \   # TensorRT Engine Save Path
-    "media/demo.jpg" \       # Input Image Path
-    "output/output.jpg"\     # Output Image Path
-    2 \                      # Pre-processing Pipeline
-    1 3 640 640              # Input Model Tensor Values
+./build/xtrt/yolo_det_img \
+    "./xtrt/engine/yolo_m.plan" \   # TensorRT Engine Save Path
+    "./xtrt/media/demo.jpg" \       # Input Image Path
+    "./xtrt/output/output.jpg"\     # Output Image Path
+    2 \                             # Pre-processing Pipeline
+    1 3 640 640                     # Input Model Tensor Values
 ```
 
 - demo-2: Inferencing a video using the built YOLO TensorRT engine.
 
 
 ```sh
-./build/yolo_det \
-    "engine/yolo_trt8.plan" \ # TensorRT Engine Save Path
-    "media/c3.mp4" \          # Input Image Path 
-    "output/output.mp4"\      # Output Image Path
-    2 \	                      # Pre-processing Pipeline
-    1 3 640 640	              # Input Model Tensor Values
+./build/xtrt/yolo_det \
+    "./xtrt/engine/yolo_trt8.plan" \ # TensorRT Engine Save Path
+    "./xtrt/media/c3.mp4" \          # Input Image Path 
+    "./xtrt/output/output.mp4"\      # Output Image Path
+    2 \	                             # Pre-processing Pipeline
+    1 3 640 640	                     # Input Model Tensor Values
 ```
 
 Then you can find the output results in the `xtrt/output` folder.

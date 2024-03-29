@@ -1,5 +1,7 @@
 # MMYOLO 模型 ONNX 转换
 
+本转化文档修改自[mmyolo](https://github.com/open-mmlab/mmyolo)的[`model_convert.md`](https://github.com/open-mmlab/mmyolo/blob/main/projects/easydeploy/docs/model_convert.md)文档。
+
 ## 1. 导出后端支持的 ONNX
 
 ### 环境依赖
@@ -39,9 +41,7 @@
 - `--score-threshold`: 非极大值抑制中过滤候选框得分的阈值，默认为 `0.25`。
 - `--model-only`: 指定仅导出模型 backbone + neck, 不包含后处理，默认关闭。
 
-
-
-例子: 导出使用了`Efficient_NMS`的yolov5s onnx模型
+例子: 导出使用了`Efficient_NMS`的yolov5s onnx模型：
 
 ```shell
 python ./projects/easydeploy/tools/export_onnx.py \
@@ -117,10 +117,6 @@ python ./projects/easydeploy/tools/export_onnx.py \
     --simplify \
 	--opset 11 \
 	--model-only
-```
-
-```
-python ./projects/easydeploy/tools/export_onnx.py configs/yolov5/yolov5_s-v61_syncbn_8xb16-300e_coco.py yolov5s.pth --work-dir work_dir/modelOnly --img-size 640 640 --batch 1 --device cpu --simplify --opset 11 --model-only
 ```
 
 
