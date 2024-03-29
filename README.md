@@ -11,7 +11,7 @@
     &nbsp;&nbsp;&nbsp;&nbsp;
     <b><font size="5">JetYOLO installation</font></b>
     <sup>
-      <a href="https://github.com/gitctrlx/JetYOLO?tab=readme-ov-file#Installation">
+      <a href="https://github.com/gitctrlx/JetYOLO?tab=readme-ov-file#%EF%B8%8F-installation">
         <i><font size="4">TRY IT OUT</font></i>
       </a>
     </sup>
@@ -19,12 +19,13 @@
   <div>&nbsp;</div>
 </div>
 
+
 ## 📄 Table of Contents
 
 - [🎉 What's New](#-whats-new)
 - [📚 Introduction](#-introduction)
 - [⚙️ Installation](#️-installation)
-  - [🔖 Docker](#-docker)
+  - [🔖 Docker](#-docker (coming soon!) )
   - [💡 Prerequisites](#-prerequisites)
   - [🛠️ Build](#️-build)
 - [✏️ Tutorial](#️-tutorial)
@@ -32,7 +33,8 @@
     - [1. Data Preparation](#1-data-preparation)
     - [2. Model Preparation](#2-model-preparation)
     - [3. Building the Engine](#3-building-the-engine)
-    - [4. Executing Inference (demo)](#4-executing-inference-demo)
+    - [4. DeepStream](#4-deepStream)
+- [🪄 Applications](#-applications)
 - [💻 Overview of Benchmark and Model Zoo](#-overview-of-benchmark-and-model-zoo)
 - [📖 Document](#-document)
 - [❓ FAQ](#-faq)
@@ -58,7 +60,7 @@ This project harnesses NVIDIA's CUDA and TensorRT through the DeepStream toolkit
 
 Our goal is to make the development of streaming analytics applications more accessible to developers of all skill levels, fostering the creation of innovative solutions across various domains.
 
-![](./assets/arch_2.png)
+<img src="./assets/arch_2.png"  />
 
 **The JetYOLO project workflow is streamlined and consists of just three steps:**
 
@@ -70,9 +72,9 @@ Our goal is to make the development of streaming analytics applications more acc
 
 ### 💡 Prerequisites
 
-#### 🔖 Docker
+#### 🔖 Docker (coming soon!) 
 
-We recommend deploying with Docker for the quickest project startup. Docker images for both X86 architecture and NVIDIA Jetson ARM architecture are provided (coming soon!). 
+We recommend deploying with Docker for the quickest project startup. Docker images for both X86 architecture and NVIDIA Jetson ARM architecture are provided. 
 
 ```bash
 docker build -f docker/[dockerfile]
@@ -86,6 +88,10 @@ If you prefer to manually configure the environment, please continue reading the
 - [DeepStream](https://developer.nvidia.com/deepstream-sdk) >= v6.2
 
 #### 🔖 Windows or Linux (x86)
+
+<details>
+<summary><strong>Click to expand to read the detailed environment configuration.</strong></summary>
+<div>
 
 To build the `JetYOLO` components, you will first need the following software packages.
 
@@ -122,6 +128,11 @@ To build the `JetYOLO` components, you will first need the following software pa
 
 - You need the CUDA version of [PyTorch](https://pytorch.org/get-started/locally/). If your device is **Jetson**, please refer to the [Jetson Models Zoo](https://elinux.org/Jetson_Zoo) for installation.
 
+- You need the CUDA version of [PyTorch](https://pytorch.org/get-started/locally/). If your device is **Jetson**, please refer to the [Jetson Models Zoo](https://elinux.org/Jetson_Zoo) for installation.
+
+</div>
+</details>
+
 ### 🛠️ build
 
 If you have completed the above environment setup, you can proceed with the following steps. Building the Basic Inference Framework：
@@ -136,8 +147,7 @@ cmake -S . -B build \
     -DBUILD_NVDSINFER_CUSTOM_IMPL=ON \
     -DBUILD_TOOLS_POLYGON_DRAW=ON \
     -DBUILD_APPS_DS_YOLO_DETECT=ON \
-    -DBUILD_APPS_DS_YOLO_FACE=ON \
-    -DBUILD_APPS_DS_YOLO_POSE=ON \
+    -DBUILD_APPS_DS_YOLO_LPR=ON \
     -DBUILD_APPS_DS_YOLO_TRACKER=ON 
 
 cmake --build build
@@ -146,20 +156,17 @@ cmake --build build
 Configure your build with the following options to tailor the setup to your needs:
 
 - **`-DCMAKE_BUILD_TYPE=Release`**: Sets the build type to Release for optimized performance.
-- **`-DCMAKE_CUDA_ARCHITECTURES=72`**: Specify the CUDA compute capability (sm) of your host (Jetson Xavier nx:72).
+- **`-DCMAKE_CUDA_ARCHITECTURES=72`**: Specify the CUDA compute capability (sm) of your host (`Jetson Xavier NX: 72`).
 - **`-DBUILD_XRT=ON`**: Enables the build of xtrt, our lightweight, high-performance inference tool.
 - **`-DBUILD_NVDSINFER_CUSTOM_IMPL=ON`**: Determines whether to compile the DeepStream plugin for app applications.
 - **`-DBUILD_TOOLS_POLYGON_DRAW=ON`**: Controls the inclusion of the bounding box drawing tool in the `app/ds_yolo_tracker` application.
 - **`-DBUILD_APPS_DS_YOLO_DETECT=ON`**: Determines whether to build the `app/ds_yolo_detect` application.
-- **`-DBUILD_APPS_DS_YOLO_FACE=ON`**: Determines whether to build the `app/ds_yolo_face` application.
-- **`-DBUILD_APPS_DS_YOLO_POSE=ON`**: Determines whether to build the `app/ds_yolo_pose` application.
+- **`-DBUILD_APPS_DS_YOLO_LPR=ON`**: Determines whether to build the `app/ds_yolo_lpr` application.
 - **`-DBUILD_APPS_DS_YOLO_TRACKER=ON`**: Determines whether to build the `app/ds_yolo_tracker` application.
 
 > If you are unsure about your **CUDA SM** version, you can run `tools/cudasm.sh` to check. For more details, please see [FAQ](doc/faq.md).
 >
 > We recommend enabling all options for the build. If you encounter errors during compilation, you can selectively disable some options to troubleshoot, or feel free to submit an issue to us. We are more than happy to assist in resolving it.
-
-
 
 (Optional) If you would like to use the complete set of tools developed in Python, please install the following: 
 
@@ -173,7 +180,7 @@ python3 -m pip install xtrt/requirements.txt
 
 ### 🧨 Quick Start
 
-#### 1. Data Preparation
+#### 1. (Optional) Data Preparation
 
 Data is used for calibration during quantization. We plan to use the [COCO val dataset](http://images.cocodataset.org/zips/val2017.zip) for model quantization calibration work. Place the downloaded val2017 dataset in the `xtrt/data/coco` directory.
 
@@ -216,7 +223,7 @@ Once the dataset is ready, the next step is to construct the engine. Below is an
 
 For a detailed analysis of the code's parameters, please see the [detailed documentation](doc).
 
-**Verify the engine: Executing Inference（demo）**
+**Verify the engine: Executing Inference（xtrt's inference demo）**
 
 **Note**: Run the demo to test if the engine was built successfully.
 
@@ -250,24 +257,150 @@ Then you can find the output results in the `xtrt/output` folder.
 
 #### 4. DeepStream
 
-Next, you can use DeepStream to build end-to-end, AI-driven applications for analyzing video and sensor data. Popular use cases include retail analytics, parking management, logistics management, optical inspection, robotics, and sports analytics. DeepStream SDK 6.1.1 now supports audio. Please download the software and refer to the audio and Automatic Speech Recognition (ASR) applications. Learn more by reading about the [ASR DeepStream Plugin](https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_plugin_gst-nvdsasr.html).
+Next, you can use DeepStream to build end-to-end, AI-driven applications for analyzing video and sensor data.
 
 **Quick Start**
 
-You can quickly launch a DeepStream application using DeepStream:
-First, you need to modify the `deepstream_app_config.txt` configuration file, changing the engine file path to your actual engine file path. Since the engine is built in xtrt, you can find the engine file in the `xtrt/engine` folder. Additionally, you need to ensure that your plugin's path has been compiled. The plugin code is by default located in the `nvdsinfer_custom_impl` folder, and the compiled plugin `.so` files are located in the `build` directory.
+- You can quickly launch a DeepStream application using deepStream-app:
+
+Before running the code below, please make sure that you have built the engine file using `xtrt`, meaning you have completed the section `3. Building the Engine.`
 
 ```sh
 deepstream-app -c deepstream_app_config.txt
 ```
 
-**Applications**
+> **Note:**  If you wish to start directly from this step, please ensure that you have completed the following preparations:
+>
+> First, you need to modify the `deepstream_app_config.txt` configuration file by updating the engine file path to reflect your actual engine file path. Given that the engine is built within xtrt, you will find the engine file within the `xtrt/engine` directory. In addition to this, it is crucial to verify that the path to your plugin has been properly compiled. By default, the plugin code resides in the `nvdsinfer_custom_impl` folder, while the compiled plugin `.so` files can be found in the `build/nvdsinfer_custom_impl` directory.
+
+- Alternatively, you can run the following code to view an example of the detection inference:
+
+
+```bash
+./build/apps/ds_yolo_detect/ds_detect file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+```
+
+
+> **Note:**
+>
+> The command to run is: `./build/apps/ds_yolo_tracker/ds_tracker_app [Your video file path or RTSP stream URL]`
+>
+> Display Contents:
+>
+> - The top left corner shows the current frame's pedestrian and vehicle count.
+> - Detected individuals and vehicles within the frame will be marked with bounding boxes.
+
+这个示例来自`app/ds_detect`，这是它的pipeline：
+
+![](./assets/ds_detect_pipe.png)
+
+运行后在vlc等播放器中输入：`rtsp://[运行应用的设备ip]:8554/ds-test`你将看到：
+
+> Note：
+>
+> 你可以在同一个局域网中的任何设备上查看输出的推流视频
+
+![image-20240328113411809](./assets/image-20240328113411809.png)
+
+
+
+## 🪄 **Applications**
 
 We also provide some example applications created with `deepstream`, located in the `app` folder.
 
+### Personnel/Vehicle Boundary Detection
+
+#### Single-Stream Inference Application:
+
+This feature enables real-time tracking and boundary detection for individuals and vehicles using a single video stream. The application utilizes DeepStream for efficient processing.
+
+![](./assets/ds_track_pipe.png)
+
+To view an inference example, execute the following command:
+
+```sh
+./build/apps/ds_yolo_tracker/ds_tracker_app file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
-./build 
+
+> **Usage:** 
+>
+> - `./build/apps/ds_yolo_tracker/ds_tracker_app [Your video file path or RTSP stream URL]`
+>
+> **Display Features:**
+>
+> - The top-left corner shows the total count of pedestrians and vehicles that have passed.
+> - At the center is a boundary detection box; vehicles crossing this area are highlighted with a red bounding box.
+
+![image-20240326181100263](./assets/image-20240326181100263.png)
+
+#### Multi-Stream Application:
+
+This application extends the capabilities of the single-stream inference application to support simultaneous processing and analysis of multiple video streams. It enables efficient monitoring and boundary detection for individuals and vehicles across several feeds, leveraging NVIDIA DeepStream for optimized performance.
+
+![](./assets/ds_track_app_multi_pipe.png)
+
+To run the application with multiple video feeds, use the following command syntax:
+
+```sh
+./build/apps/ds_yolo_tracker/ds_tracker_app_multi file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4  file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
+
+> **Usage:** 
+>
+> - `./build/apps/ds_yolo_tracker/ds_tracker_app_multi [Video file path or RTSP stream URL 1] [Video file path or RTSP stream URL 2] [...]`
+> - **note:** After compilation, the current program only supports input from two stream addresses. If you wish to facilitate input from more streams, you will need to modify the corresponding code. For details, please refer to the [detailed documentation](doc).
+>
+> **Display Features:** The application provides a unified display that incorporates elements from all the processed streams.
+>
+> - **Overall Counts:** The top-left corner of each video feed display shows the total count of pedestrians and vehicles that have passed within that specific stream.
+> - **Boundary Detection Box:** A boundary detection box is presented at the center of each video feed. Vehicles crossing this predefined area in any of the streams are immediately highlighted with a red bounding box to signify a boundary violation.
+
+![image-20240329161014875](./assets/image-20240329161014875.png)
+
+
+
+### License Plate Detection/Recognition
+
+The DeepStream application offers a comprehensive solution for detecting and recognizing license plates in real-time.
+
+![](./assets/ds_lpr_2.png)
+
+To launch the license plate detection and recognition feature, use the following command:
+
+```
+./build/apps/ds_yolo_lpr/ds_lpr [file or rtsp]
+```
+
+> **Usage:** 
+>
+> - `./build/apps/ds_yolo_lpr/ds_lpr [Your video file path or RTSP stream URL]`
+>
+> **Display Features:**
+>
+> - The number displayed in the top-left corner of the screen indicates the total count of license plates detected in the current frame.
+> - License plates within the frame are enclosed by detection boxes, and when the plate content is fully recognized, the plate number will be displayed above the detection box. The confidence level of the recognition result is shown on the right side of the detection box.
+
+Upon execution, the application displays the detected license plates and their recognized characters.
+
+![image-20240329145441072](./assets/image-20240329145441072.png)
+
+> PS: The video is sourced from the [internet](https://www.bilibili.com/video/BV1pb41137Sr). Should there be any copyright infringement, please notify for removal.
+
+This functionality is based on the NVIDIA-AI-IOT lab's three-stage license plate detection project at [deepstream_lpr_app](https://github.com/NVIDIA-AI-IOT/deepstream_lpr_app), with modifications for enhanced performance.
+
+We have also provided a flowchart for the three-stage license plate detection and recognition process as follows. For a detailed analysis, please refer to the [detailed documentation](doc).
+
+![](./assets/ds_lpr_3.png)
+
+### TODO
+
++ [ ] Face Detection and Pose Recognition Project Initiatives
+
+> **Note：**
+>
+> We are setting out to develop practical applications for face detection and pose recognition by building upon the foundation laid by exemplary works, namely [DeepStream-Yolo-Face](https://github.com/marcoslucianops/DeepStream-Yolo-Face) and [DeepStream-Yolo-Pose](https://github.com/marcoslucianops/DeepStream-Yolo-Pose). Our objective includes devising compelling applications such as detecting human falls. 
+>
+> Additionally, we plan to integrate these solutions with our [XTRT](https://github.com/gitctrlx/xtrt) inference engine. The integration aims at enhancing the performance of the Yolo-Face and Yolo-Pose TensorRT engines through plugin-based optimizations for smoother and more efficient inference. We are open to new ideas and invite contributions and suggestions to further enrich our project.
 
 
 
@@ -308,11 +441,11 @@ This project is released under the [GPL 3.0 license](LICENSE.txt).
 This project references many excellent works from predecessors, and some useful repository links are provided at the end.
 
 1. [TensorRT](https://github.com/NVIDIA/TensorRT)
-2. [mmyolo](https://github.com/open-mmlab/mmyolo)
-3. [Lidar_AI_Solution](https://github.com/NVIDIA-AI-IOT/Lidar_AI_Solution)
-4. [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
-5. [DeepStream-Yolo-Face](https://github.com/marcoslucianops/DeepStream-Yolo-Face)
-6. [DeepStream-Yolo-Pose](https://github.com/marcoslucianops/DeepStream-Yolo-Pose)
-7. [deepstream_lpr_app](https://github.com/NVIDIA-AI-IOT/deepstream_lpr_app)
-8. [CVprojects](https://github.com/enpeizhao/CVprojects)
+2. [CVprojects](https://github.com/enpeizhao/CVprojects)
+3. [mmyolo](https://github.com/open-mmlab/mmyolo)
+4. [Lidar_AI_Solution](https://github.com/NVIDIA-AI-IOT/Lidar_AI_Solution)
+5. [DeepStream-Yolo](https://github.com/marcoslucianops/DeepStream-Yolo)
+6. [DeepStream-Yolo-Face](https://github.com/marcoslucianops/DeepStream-Yolo-Face)
+7. [DeepStream-Yolo-Pose](https://github.com/marcoslucianops/DeepStream-Yolo-Pose)
+8. [deepstream_lpr_app](https://github.com/NVIDIA-AI-IOT/deepstream_lpr_app)
 

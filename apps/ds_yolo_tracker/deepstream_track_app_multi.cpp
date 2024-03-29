@@ -83,7 +83,7 @@ void update_display_meta(NvDsDisplayMeta *display_meta, guint source_id) {
 
     // Preparing text for display
     char display_text[MAX_DISPLAY_LEN];
-    snprintf(display_text, MAX_DISPLAY_LEN, "Person Count = %zu, Vehicle Count = %zu",  g_person_ids.size(), g_vehicle_ids.size());
+    snprintf(display_text, MAX_DISPLAY_LEN, "Person Count = %zu, Vehicle Count = %zu", source_info.g_person_ids.size(), source_info.g_vehicle_ids.size());
 
     NvOSD_TextParams *txt_params = &display_meta->text_params[0];
     txt_params->display_text = g_strdup(display_text);
@@ -134,9 +134,6 @@ static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo 
     GstBuffer *buf = GST_BUFFER(info->data);
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
 
-    guint vehicle_count = 0;
-    guint person_count = 0;
-
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next) {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
         guint source_id = frame_meta->source_id;
@@ -145,24 +142,19 @@ static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo 
 
         set_polygon_for_source(source_id, frame_meta);
 
-        g_source_info[source_id].g_vehicle_ids.clear();
-        g_source_info[source_id].g_person_ids.clear();
-
         for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next) {
             NvDsObjectMeta *obj_meta = (NvDsObjectMeta *)(l_obj->data);
             set_object_meta_properties(obj_meta, g_source_info[source_id].g_polygon);
 
-            // Vehicle and person classification
+            // Vehicle and person classification and tracking
             if (obj_meta->class_id == PGIE_CLASS_ID_VEHICLE) {
-                if (std::find(g_vehicle_ids.begin(), g_vehicle_ids.end(), obj_meta->object_id) == g_vehicle_ids.end()) {
-                    g_vehicle_ids.push_back(obj_meta->object_id);
+                if (std::find(g_source_info[source_id].g_vehicle_ids.begin(), g_source_info[source_id].g_vehicle_ids.end(), obj_meta->object_id) == g_source_info[source_id].g_vehicle_ids.end()) {
+                    g_source_info[source_id].g_vehicle_ids.push_back(obj_meta->object_id);
                 }
-                vehicle_count++;
             } else if (obj_meta->class_id == PGIE_CLASS_ID_PERSON) {
-                if (std::find(g_person_ids.begin(), g_person_ids.end(), obj_meta->object_id) == g_person_ids.end()) {
-                    g_person_ids.push_back(obj_meta->object_id);
+                if (std::find(g_source_info[source_id].g_person_ids.begin(), g_source_info[source_id].g_person_ids.end(), obj_meta->object_id) == g_source_info[source_id].g_person_ids.end()) {
+                    g_source_info[source_id].g_person_ids.push_back(obj_meta->object_id);
                 }
-                person_count++;
             }
         }
         NvDsDisplayMeta *display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
