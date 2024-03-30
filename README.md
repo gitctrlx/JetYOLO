@@ -433,9 +433,20 @@ The following graph displays the benchmarks achieved using [MMYOLO](https://mmyo
 
 ### 🔖 Model Zoo
 
-For convenience, you can use the YOLO series ONNX models we have uploaded to HuggingFace. However, if you prefer to export your own ONNX models, you have the option to use your models or download the original [pre-trained PyTorch model weights](https://github.com/open-mmlab/mmyolo/tree/main) from MMYOLO. Follow the steps outlined in the [MMYOLO documentation](https://github.com/open-mmlab/mmyolo/blob/main/projects/easydeploy/docs/model_convert.md) and use the [`export_onnx.py`](https://github.com/open-mmlab/mmyolo/blob/main/projects/easydeploy/tools/export_onnx.py) script to convert your model into the ONNX format.
+For convenience, you can use the YOLO series ONNX models we have uploaded to HuggingFace. 
 
-> **Note：**The models we have uploaded to HuggingFace are exported to ONNX from MMYOLO's pre-trained models and are available in two formats: one is an end-to-end model that includes the EfficientNMS plugin, and the other has the decode step removed. Please choose the version that best fits your needs. For more information, refer to the [detailed documentation](doc).
+You can download the ONNX model of your choice from the following link: https://huggingface.co/CtrlX/JetYOLO/tree/main
+
+Place the downloaded ONNX model files into the following folder:
+
+```
+xtrt\
+ └── weights
+```
+
+If you wish to convert PyTorch models to ONNX format yourself, please refer to the [`doc/model_convert.md`](https://github.com/gitctrlx/JetYOLO/blob/main/doc/model_convert.md) document.
+
+> **Note：**The models we have uploaded to HuggingFace are exported to ONNX from MMYOLO's pre-trained models and are available in two formats: one is an end-to-end model that includes the EfficientNMS plugin, and the other has the decode step removed. Please choose the version that best fits your needs. For more information, refer to the  [`doc/model_convert.md`](https://github.com/gitctrlx/JetYOLO/blob/main/doc/model_convert.md) .
 
 ## 📖 Document
 
