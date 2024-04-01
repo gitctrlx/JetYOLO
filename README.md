@@ -433,7 +433,7 @@ The following graph displays the benchmarks achieved using [MMYOLO](https://mmyo
 
 ### 🔖 Model Zoo
 
-For convenience, you can use the YOLO series ONNX models we have uploaded to HuggingFace. 
+For convenience, you can use the YOLO series ONNX models we have uploaded to HuggingFace, please refer to the [`doc/model_zoo.md`](https://github.com/gitctrlx/JetYOLO/blob/main/doc/model_zoo.md) document.
 
 You can download the ONNX model of your choice from the following link: https://huggingface.co/CtrlX/JetYOLO/tree/main
 
