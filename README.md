@@ -73,7 +73,7 @@ Our goal is to make the development of streaming analytics applications more acc
 
 #### 🔖 Docker (coming soon!) 
 
-We recommend deploying with Docker for the quickest project startup. Docker images for both X86 architecture and NVIDIA Jetson ARM architecture are provided. 
+We recommend deploying with Docker for the quickest project startup. Docker images for both X86 architecture and **NVIDIA Jetson** ARM architecture are provided. 
 
 ```bash
 docker build -f docker/[dockerfile]
@@ -86,6 +86,7 @@ If you prefer to manually configure the environment, please continue reading the
 - [JetPack SDK](https://developer.nvidia.com/embedded/jetpack) >= v5.0.2
 - [DeepStream](https://developer.nvidia.com/deepstream-sdk) >= v6.1
 - [gstreamer1.0](https://gstreamer.freedesktop.org/documentation/installing/on-linux.html?gi-language=c)
+- [nlohmann/json.hpp](nlohmann/json.hpp)
 
 #### 🔖 Windows or Linux (x86)
 
@@ -123,6 +124,8 @@ To build the `JetYOLO` components, you will first need the following software pa
 - [python](https://www.python.org/downloads/) >= v3.8, <= v3.10.x
 
 - [pip](https://pypi.org/project/pip/#history) >= v19.0
+
+- [nlohmann/json.hpp](nlohmann/json.hpp)
 
 - Essential utilities
 
@@ -197,15 +200,13 @@ xtrt\
 
 #### 2. Model Preparation
 
-Place the prepared ONNX file into the weights folder. You can directly download the ONNX weights we have exported from HuggingFace, all weights originate from [mmyolo pre-trained weights](https://github.com/open-mmlab/mmyolo/tree/main). You also have the option to configure mmyolo to freely export weights, or use other object detection models to export ONNX. The related code can be found in `xtrt/tools/modify_onnx`.
-
-> There are two formats of ONNX exported by mmyolo. One is an end-to-end ONNX that has added the `EfficientNMS` node from `TensorRT8`, and the other is a pure model part that has removed the decode part (including three output results). For detailed content, please see the [detailed tutorial](doc/tutorial.md) document. You can use the ONNX model that has added `EfficientNMS`, or use the model that has removed the decode part and manually add plugins for acceleration. The related code can be found in `xtrt/tools/modify_onnx`.
+Please read the [💻 Overview of Benchmark and Model Zoo](#-overview-of-benchmark-and-model-zoo) section for downloading. If you want to quickly start with the examples below, you can skip this step, as the `xtrt/weights` folder in the cloned repository contains a `yolov5s` ONNX model with `EfficientNMS plugin`.
 
 #### 3. Building the Engine
 
 Once the dataset is ready, the next step is to construct the engine. Below is an example for building a YOLOv5s TensorRT engine, with the corresponding code located in [`scripts/build_engine.sh`](https://github.com/gitctrlx/JetYOLO/blob/main/scripts/build_engine.sh):
 
-```sh
+```bash
 ./build/xtrt/build \
     "./xtrt/weights/yolov5s_trt8.onnx" \    # ONNX Model File Path
     "./xtrt/engine/yolo.plan" \             # TensorRT Engine Save Path
@@ -233,7 +234,7 @@ For a detailed analysis of the code's parameters, please see the [detailed docum
 - demo-1: Inferencing a single image using the built YOLO TensorRT engine. The following code is located in [`scripts/demo_yolo_det_img.sh`](https://github.com/gitctrlx/JetYOLO/blob/main/scripts/demo_yolo_det_img.sh)：
 
 
-```sh
+```bash
 ./build/xtrt/yolo_det_img \
     "./xtrt/engine/yolo_trt8.plan" \ # TensorRT Engine Save Path
     "./xtrt/media/demo.jpg" \        # Input Image Path
@@ -245,7 +246,7 @@ For a detailed analysis of the code's parameters, please see the [detailed docum
 - demo-2: Inferencing a video using the built YOLO TensorRT engine. The following code is located in [`scripts/demo_yolo_det_video.sh`](https://github.com/gitctrlx/JetYOLO/blob/main/scripts/demo_yolo_det_video.sh)：
 
 
-```sh
+```bash
 ./build/xtrt/yolo_det \
     "./xtrt/engine/yolo_trt8.plan" \ # TensorRT Engine Save Path
     "./xtrt/media/c3.mp4" \          # Input Video Path 
@@ -258,8 +259,8 @@ Then you can find the output results in the `xtrt/output` folder.
 
 > **Note**: It is recommended to directly run the script or copy the code within the script for execution, rather than copying and running the code with comments included above:
 >
-> ```
-> chmod 777 ./scripts/demo_yolo_det_img.sh
+> ```bash
+> chmod 777 ./scripts/demo_yolo_det_img.sh # Grant execution permission to the script.
 > ./scripts/demo_yolo_det_img.sh
 > ```
 >
@@ -457,7 +458,7 @@ xtrt\
 
 If you wish to convert PyTorch models to ONNX format yourself, please refer to the [`doc/model_convert.md`](https://github.com/gitctrlx/JetYOLO/blob/main/doc/model_convert.md) document.
 
-> **Note：**The models we have uploaded to HuggingFace are exported to ONNX from MMYOLO's pre-trained models and are available in two formats: one is an end-to-end model that includes the EfficientNMS plugin, and the other has the decode step removed. Please choose the version that best fits your needs. For more information, refer to the  [`doc/model_convert.md`](https://github.com/gitctrlx/JetYOLO/blob/main/doc/model_convert.md) .
+> **Note：**The models we have uploaded to HuggingFace are exported to ONNX from MMYOLO's pre-trained models and are available in two formats: One is an end-to-end ONNX that has added the `EfficientNMS` node from `TensorRT8`, and the other is a pure model part that has removed the decode part (including three output results). For detailed content, please see the [`doc/model_convert.md`](https://github.com/gitctrlx/JetYOLO/blob/main/doc/model_convert.md)  document. You can use the ONNX model that has added `EfficientNMS`, or use the model that has removed the decode part and manually add plugins for acceleration. The related code can be found in `xtrt/tools/modify_onnx`.
 
 ## 📖 Document
 
