@@ -84,7 +84,8 @@ If you prefer to manually configure the environment, please continue reading the
 #### 🔖 NVIDIA Jetson Appliances
 
 - [JetPack SDK](https://developer.nvidia.com/embedded/jetpack) >= v5.0.2
-- [DeepStream](https://developer.nvidia.com/deepstream-sdk) >= v6.2
+- [DeepStream](https://developer.nvidia.com/deepstream-sdk) >= v6.1
+- [gstreamer1.0](https://gstreamer.freedesktop.org/documentation/installing/on-linux.html?gi-language=c)
 
 #### 🔖 Windows or Linux (x86)
 
@@ -101,6 +102,10 @@ To build the `JetYOLO` components, you will first need the following software pa
 **DeepStream**
 
 - [DeepStream](https://developer.nvidia.com/deepstream-sdk) >= v6.2
+
+**GStreamer**
+
+- [gstreamer1.0](https://gstreamer.freedesktop.org/documentation/installing/on-linux.html?gi-language=c)
 
 **System Packages**
 
@@ -127,7 +132,6 @@ To build the `JetYOLO` components, you will first need the following software pa
 
 - You need the CUDA version of [PyTorch](https://pytorch.org/get-started/locally/). If your device is **Jetson**, please refer to the [Jetson Models Zoo](https://elinux.org/Jetson_Zoo) for installation.
 
-- You need the CUDA version of [PyTorch](https://pytorch.org/get-started/locally/). If your device is **Jetson**, please refer to the [Jetson Models Zoo](https://elinux.org/Jetson_Zoo) for installation.
 
 </div>
 </details>
@@ -224,34 +228,41 @@ For a detailed analysis of the code's parameters, please see the [detailed docum
 
 **Verify the engine: Executing Inference（xtrt's inference demo）**
 
-**Note**: Run the demo to test if the engine was built successfully.
+> **Note**: Run the demo to test if the engine was built successfully.
 
-- demo-1: Inferencing a single image using the built YOLO TensorRT engine.
+- demo-1: Inferencing a single image using the built YOLO TensorRT engine. The following code is located in [`scripts/demo_yolo_det_img.sh`](https://github.com/gitctrlx/JetYOLO/blob/main/scripts/demo_yolo_det_img.sh)：
 
 
 ```sh
 ./build/xtrt/yolo_det_img \
-    "./xtrt/engine/yolo_m.plan" \   # TensorRT Engine Save Path
-    "./xtrt/media/demo.jpg" \       # Input Image Path
-    "./xtrt/output/output.jpg"\     # Output Image Path
-    2 \                             # Pre-processing Pipeline
-    1 3 640 640                     # Input Model Tensor Values
+    "./xtrt/engine/yolo_trt8.plan" \ # TensorRT Engine Save Path
+    "./xtrt/media/demo.jpg" \        # Input Image Path
+    "./xtrt/output/output.jpg"\      # Output Image Path
+    2 \                              # Pre-processing Pipeline
+    1 3 640 640                      # Input Model Tensor Values
 ```
 
-- demo-2: Inferencing a video using the built YOLO TensorRT engine.
+- demo-2: Inferencing a video using the built YOLO TensorRT engine. The following code is located in [`scripts/demo_yolo_det_video.sh`](https://github.com/gitctrlx/JetYOLO/blob/main/scripts/demo_yolo_det_video.sh)：
 
 
 ```sh
 ./build/xtrt/yolo_det \
     "./xtrt/engine/yolo_trt8.plan" \ # TensorRT Engine Save Path
-    "./xtrt/media/c3.mp4" \          # Input Image Path 
-    "./xtrt/output/output.mp4"\      # Output Image Path
+    "./xtrt/media/c3.mp4" \          # Input Video Path 
+    "./xtrt/output/output.mp4"\      # Output Video Path
     2 \	                             # Pre-processing Pipeline
     1 3 640 640	                     # Input Model Tensor Values
 ```
 
 Then you can find the output results in the `xtrt/output` folder.
 
+> **Note**: It is recommended to directly run the script or copy the code within the script for execution, rather than copying and running the code with comments included above:
+>
+> ```
+> chmod 777 ./scripts/demo_yolo_det_img.sh
+> ./scripts/demo_yolo_det_img.sh
+> ```
+>
 > For a detailed analysis of the code's parameters, please see the [detailed documentation](doc).
 
 #### 4. DeepStream
