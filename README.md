@@ -388,6 +388,12 @@ This example is based on the `app/ds_yolo_lpr` directory, showcasing its process
 
 ![](./assets/ds_lpr_2.png)
 
+**Note:** Before you run the command below, you need to prepare two stages of TensorRT engine files for the first stage of detection and the second stage of detection, with the corresponding code located in [`scripts/build_lpr_engine.sh`](https://github.com/gitctrlx/JetYOLO/blob/main/scripts/build_lpr_engine.sh):
+
+```sh
+./scripts/build_lpr_engine.sh
+```
+
 To launch the license plate detection and recognition feature, use the following command:
 
 ```
