@@ -28,6 +28,7 @@ xtrt/engine/timingCache/*.cache
 xtrt/data/coco/val2017/*.jpg
 xtrt/tools/eval/log/*.log
 xtrt/tools/quant/log/*.log
+xtrt/output/output.mp4
 
 # Other general ignores
 *.log
