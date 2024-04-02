@@ -200,7 +200,7 @@ xtrt\
 
 #### 2. Model Preparation
 
-Please read the [💻 Overview of Benchmark and Model Zoo](#-overview-of-benchmark-and-model-zoo) section for downloading. If you want to quickly start with the examples below, you can skip this step, as the `xtrt/weights` folder in the cloned repository contains a `yolov5s` ONNX model with `EfficientNMS plugin`.
+Please read the [🔖 Model Zoo](#-model-zoo) section for downloading. If you want to quickly start with the examples below, you can skip this step, as the `xtrt/weights` folder in the cloned repository contains a `yolov5s` ONNX model with `EfficientNMS plugin`.
 
 #### 3. Building the Engine
 
