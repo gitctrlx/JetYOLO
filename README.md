@@ -432,9 +432,14 @@ We have also provided a flowchart for the three-stage license plate detection an
 
 ![](./assets/ds_lpr_3.png)
 
-### TODO
+### TODO & Future Outlook
 
-+ [ ] Face Detection and Pose Recognition Project Initiatives
+We are committed to continuously enriching and expanding our content library by introducing more exciting and practical cases. In doing so, our goal is not only to increase the diversity and practicality of the content but also to continually enhance user experience and satisfaction. Each new case is aimed at providing fresh insights, skills, or solutions to help users better understand and apply relevant knowledge. We believe that through this ongoing effort and refinement, we can create a resource library that is both rich and practical, meeting the growing needs of our broad user base!!!
+
++ [ ] Face Detection and Pose Recognition Project Initiatives: For facial detection and behavior recognition, detecting falls of individuals.
++ [ ] Food Safety Inspection: Monitoring kitchen and food preparation to ensure the accuracy of product preparation and assembly steps.
++ [ ] Livestock Management: Used by herders to conveniently manage bred livestock through the use of drones combined with detection and tracking technology.
++ [ ] Forest Monitoring: Determining the location, diameter, and volume of each tree, suitable for drones and smart agriculture.
 
 > **Note：**
 >
