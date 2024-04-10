@@ -73,6 +73,10 @@ Our goal is to make the development of streaming analytics applications more acc
 
 #### 🔖 Docker (coming soon!) 
 
+<details>
+<summary><strong>Click to expand to read the detailed Docker environment configuration.</strong></summary>
+<div>
+
 We recommend deploying with Docker for the quickest project startup. Docker images for both X86 architecture and **NVIDIA Jetson** ARM architecture are provided. 
 
 ```bash
@@ -81,12 +85,17 @@ docker build -f docker/[dockerfile]
 
 If you prefer to manually configure the environment, please continue reading the section below.
 
+</div>
+</details>
+
 #### 🔖 NVIDIA Jetson Appliances
 
 - [JetPack SDK](https://developer.nvidia.com/embedded/jetpack) >= v5.0.2
 - [DeepStream](https://developer.nvidia.com/deepstream-sdk) >= v6.1
 - [gstreamer1.0](https://gstreamer.freedesktop.org/documentation/installing/on-linux.html?gi-language=c)
 - [nlohmann/json.hpp](nlohmann/json.hpp)
+
+> For more details, please see [FAQ](doc/faq.md).
 
 #### 🔖 Windows or Linux (x86)
 

@@ -1,6 +1,6 @@
 # MMYOLO Model ONNX Conversion
 
-> This conversion document is adapted from the [`model_convert.md`](https://github.com/open-mmlab/mmyolo/blob/main/projects/easydeploy/docs/model_convert.md) document of [mmyolo](https://github.com/open-mmlab/mmyolo).
+> This conversion document is adapted from the [`model_convert.md`](https://github.com/open-mmlab/mmyolo/blob/main/projects/easydeploy/docs/model_convert.md) document of [mmyolo](https://github.com/open-mmlab/mmyolo). If you want to use the following code or script to perform the export, you first need to install mmyolo and be in the mmyolo project directory.
 >
 
 ## 1. Exporting ONNX Supported by Backend
@@ -69,7 +69,7 @@ Then, using backend-supported tools like `TensorRT`, read the `onnx` and convert
 
 The input and output of the onnx model obtained from the end-to-end conversion are as follows:
 
-![image-20240123172324590](./assets/image-20240123172324590.png)
+![image-20240123172324590](../assets/image-20240123172324590.png)
 
 Input name: `images`, size 640x640
 

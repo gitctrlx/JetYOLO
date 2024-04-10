@@ -1,6 +1,7 @@
 # MMYOLO 模型 ONNX 转换
 
-本转化文档修改自[mmyolo](https://github.com/open-mmlab/mmyolo)的[`model_convert.md`](https://github.com/open-mmlab/mmyolo/blob/main/projects/easydeploy/docs/model_convert.md)文档。
+> 本转化文档修改自[mmyolo](https://github.com/open-mmlab/mmyolo)的[`model_convert.md`](https://github.com/open-mmlab/mmyolo/blob/main/projects/easydeploy/docs/model_convert.md)文档。如果你想要使用下面的代码或者脚本进行导出你需要首先安装mmyolo才能进行，并且处在mmyolo的项目目录中。
+>
 
 ## 1. 导出后端支持的 ONNX
 
